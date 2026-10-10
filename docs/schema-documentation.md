@@ -1,10 +1,10 @@
 # Documenting the schemas
 
-Plan for putting help text next to the schemas (agent definition, evaluation config, dataset). Not implemented yet.
+Plan for putting help text next to the schemas (agent definition, evaluation config, dataset). Step 1 is implemented; steps 2 to 5 are not.
 
 Principle: write each explanation once, in the Pydantic model, and generate everything else from it.
 
-## 1. Descriptions in the models (foundation)
+## 1. Descriptions in the models (foundation) - done
 
 - Add `Field(description=..., examples=[...])` to every field and a docstring to every class.
 - Pydantic copies both into the generated JSON Schema, so editors show hover help and autocomplete.
@@ -32,5 +32,5 @@ Principle: write each explanation once, in the Pydantic model, and generate ever
 
 ## Order
 
-Do steps 1 to 3 in one PR after the dataset schema, so the descriptions are written once for all three schemas.
+Step 1 was done for the two existing schemas; the dataset schema gets its descriptions when it is written. Steps 2 and 3 follow.
 Reference docs stay as Markdown in the repo; a published docs site can come later.
