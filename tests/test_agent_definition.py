@@ -23,33 +23,38 @@ def test_v1_equivalent_loads():
 
 
 def test_defaults():
-    d = AgentDefinition.model_validate({"schema_version": 1, "name": "a", "model": {"provider": "bedrock", "model_id": "m"}})
+    d = AgentDefinition.model_validate(
+        {"schema_version": 1, "name": "a", "model": {"provider": "bedrock", "model_id": "m"}}
+    )
     assert d.prompt == "prompts/system.md" and d.skills == [] and d.memory.mode == "disabled" and d.tags == {}
 
 
-@pytest.mark.parametrize("data", [
-    base(unknown_field=1),                                    # strict: typos fail
-    base(schema_version=2),
-    base(name="has_underscore"),
-    base(name="x" * 33),
-    base(name="1abc"),
-    base(prompt="../outside.md"),
-    base(prompt="/etc/passwd"),
-    base(skills=[{"path": "../x"}]),
-    base(tools=[{"type": "remote_mcp", "name": "t"}]),
-    base(tags={"agentcore:x": "1"}),
-    base(tags={"AWS:x": "1"}),
-    base(memory={"mode": "existing", "name": "m"}),           # not exposed
-    base(memory={"mode": "managed", "strategies": []}),
-    base(limits={"max_iterations": 0}),
-    base(truncation={"strategy": "sliding_window", "summary_ratio": 0.5}),
-    base(model={"provider": "open_ai", "model_id": "m"}),     # missing credential
-    base(model={"provider": "bedrock", "model_id": "m", "credential": "c"}),
-    base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "api_format": "converse_stream"}),
-    base(model={"provider": "open_ai", "model_id": "m", "credential": "arn:aws:x"}),  # ARNs not allowed
-    base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "temperature": 3}),
-    base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "api_key_arn": "x"}),
-])
+@pytest.mark.parametrize(
+    "data",
+    [
+        base(unknown_field=1),  # strict: typos fail
+        base(schema_version=2),
+        base(name="has_underscore"),
+        base(name="x" * 33),
+        base(name="1abc"),
+        base(prompt="../outside.md"),
+        base(prompt="/etc/passwd"),
+        base(skills=[{"path": "../x"}]),
+        base(tools=[{"type": "remote_mcp", "name": "t"}]),
+        base(tags={"agentcore:x": "1"}),
+        base(tags={"AWS:x": "1"}),
+        base(memory={"mode": "existing", "name": "m"}),  # not exposed
+        base(memory={"mode": "managed", "strategies": []}),
+        base(limits={"max_iterations": 0}),
+        base(truncation={"strategy": "sliding_window", "summary_ratio": 0.5}),
+        base(model={"provider": "open_ai", "model_id": "m"}),  # missing credential
+        base(model={"provider": "bedrock", "model_id": "m", "credential": "c"}),
+        base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "api_format": "converse_stream"}),
+        base(model={"provider": "open_ai", "model_id": "m", "credential": "arn:aws:x"}),  # ARNs not allowed
+        base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "temperature": 3}),
+        base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "api_key_arn": "x"}),
+    ],
+)
 def test_invalid(data):
     with pytest.raises(ValidationError):
         AgentDefinition.model_validate(data)

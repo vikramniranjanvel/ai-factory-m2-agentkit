@@ -1,4 +1,5 @@
 """Write the JSON Schema files (for editor autocomplete and CI): uv run python -m agentkit.schemas.export"""
+
 import json
 from pathlib import Path
 

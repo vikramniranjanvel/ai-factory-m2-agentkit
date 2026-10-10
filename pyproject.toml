@@ -6,7 +6,10 @@ requires-python = ">=3.11"
 dependencies = ["pydantic>=2.7,<3", "pyyaml>=6"]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "pytest>=8",
+    "ruff>=0.17.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -17,3 +20,11 @@ packages = ["src/agentkit"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

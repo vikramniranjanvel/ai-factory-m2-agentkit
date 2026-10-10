@@ -4,10 +4,11 @@ A curated subset of the native AgentCore HarnessSpec. Environment-specific value
 resource prefix, execution role, network) are never authored here; AgentKit resolves them from SSM and compiles this
 file into a native harness.json at deploy time. Keys are snake_case; the compiler maps them to the native camelCase.
 """
+
 from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
@@ -55,13 +56,16 @@ class Model(_Strict):
             if allowed is None:
                 raise ValueError(f"'api_format' is not supported for provider '{self.provider}'")
             if self.api_format not in allowed:
-                raise ValueError(f"api_format '{self.api_format}' is not valid for {self.provider} "
-                                 f"(allowed: {', '.join(sorted(allowed))})")
+                raise ValueError(
+                    f"api_format '{self.api_format}' is not valid for {self.provider} "
+                    f"(allowed: {', '.join(sorted(allowed))})"
+                )
         return self
 
 
 class Skill(_Strict):
     """A skill kept in this project repository."""
+
     path: str
 
     _check_path = field_validator("path")(_project_relative)
@@ -73,12 +77,16 @@ class MemoryDisabled(_Strict):
 
 class MemoryManaged(_Strict):
     mode: Literal["managed"]
-    strategies: Annotated[list[Literal["SEMANTIC", "SUMMARIZATION", "USER_PREFERENCE", "EPISODIC"]],
-                          Field(min_length=1, max_length=4)] | None = None
+    strategies: (
+        Annotated[
+            list[Literal["SEMANTIC", "SUMMARIZATION", "USER_PREFERENCE", "EPISODIC"]], Field(min_length=1, max_length=4)
+        ]
+        | None
+    ) = None
     event_expiry_days: Annotated[int, Field(ge=3, le=365)] | None = None
 
 
-Memory = Annotated[Union[MemoryDisabled, MemoryManaged], Field(discriminator="mode")]
+Memory = Annotated[MemoryDisabled | MemoryManaged, Field(discriminator="mode")]
 
 
 class Limits(_Strict):
@@ -89,8 +97,8 @@ class Limits(_Strict):
 
 class Truncation(_Strict):
     strategy: Literal["none", "sliding_window", "summarization"]
-    messages_count: Annotated[int, Field(ge=1)] | None = None            # sliding_window only
-    summary_ratio: Annotated[float, Field(gt=0, lt=1)] | None = None     # summarization only
+    messages_count: Annotated[int, Field(ge=1)] | None = None  # sliding_window only
+    summary_ratio: Annotated[float, Field(gt=0, lt=1)] | None = None  # summarization only
     preserve_recent_messages: Annotated[int, Field(ge=0)] | None = None  # summarization only
 
     @model_validator(mode="after")
