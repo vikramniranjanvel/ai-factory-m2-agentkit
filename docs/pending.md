@@ -25,5 +25,8 @@ Tick items off as they land. Details of the documentation plan are in `schema-do
 
 - [ ] The CDK template from the CLI has no `package-lock.json`, so `npm install` at deploy time is not reproducible; consider vendoring a lockfile
 - [ ] The API-key credential provider is named after the credential (`openai-key`) and lives in the account's token vault, so environments in one account share it; revisit when environments get their own accounts
-- [ ] The native CLI keeps deployed state in `agentcore/.cli`; confirm on the first real deploy that a second `deploy` from a fresh temp directory updates the same stack
-- [ ] Write `.env.local` from the SSM SecureString (`/agentkit/<env>/credentials/<name>`) just before `agentcore deploy`
+- [x] The native CLI keeps deployed state in `agentcore/.cli`; confirmed 2026-10-10: a second `deploy` from a fresh temp directory updated the same stack (`AgentCore-supportTriage-dev`, harness version stayed 1)
+- [x] Write `.env.local` from the SSM SecureString (`/agentkit/<env>/credentials/<name>`) just before `agentcore deploy`
+- [x] First real deploy to dev done 2026-10-10 (`agentkit deploy --env dev --no-assume-role`): harness `dev_supportTriage` READY
+- [x] Invoked the deployed harness once (2026-10-10): the model answered, so the API key and model work end to end
+- [ ] The deploy role (`agentkit-dev-deploy`) does not exist yet; until the platform slice creates it, deploy with `--no-assume-role`
