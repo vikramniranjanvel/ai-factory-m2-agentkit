@@ -1,0 +1,7 @@
+#!/bin/sh
+# Regenerate the JSON Schema files when a schema model is part of the commit, and stage them.
+# Enable once per clone: git config core.hooksPath .githooks
+if git diff --cached --name-only | grep -q '^src/agentkit/schemas/'; then
+  uv run --quiet python -m agentkit.schemas.export || exit 1
+  git add schemas/
+fi

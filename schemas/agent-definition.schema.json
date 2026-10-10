@@ -1,0 +1,409 @@
+{
+  "$defs": {
+    "Limits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_iterations": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Iterations"
+        },
+        "timeout_seconds": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Seconds"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Tokens"
+        }
+      },
+      "title": "Limits",
+      "type": "object"
+    },
+    "MemoryDisabled": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "const": "disabled",
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "MemoryDisabled",
+      "type": "object"
+    },
+    "MemoryManaged": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "const": "managed",
+          "title": "Mode",
+          "type": "string"
+        },
+        "strategies": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "SEMANTIC",
+                  "SUMMARIZATION",
+                  "USER_PREFERENCE",
+                  "EPISODIC"
+                ],
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Strategies"
+        },
+        "event_expiry_days": {
+          "anyOf": [
+            {
+              "maximum": 365,
+              "minimum": 3,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Event Expiry Days"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "MemoryManaged",
+      "type": "object"
+    },
+    "Model": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "enum": [
+            "bedrock",
+            "open_ai",
+            "gemini",
+            "lite_llm"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "model_id": {
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "credential": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Credential"
+        },
+        "api_format": {
+          "anyOf": [
+            {
+              "enum": [
+                "converse_stream",
+                "responses",
+                "chat_completions"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Format"
+        },
+        "temperature": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Temperature"
+        },
+        "top_p": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Top P"
+        },
+        "top_k": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Top K"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Tokens"
+        }
+      },
+      "required": [
+        "provider",
+        "model_id"
+      ],
+      "title": "Model",
+      "type": "object"
+    },
+    "Skill": {
+      "additionalProperties": false,
+      "description": "A skill kept in this project repository.",
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "Skill",
+      "type": "object"
+    },
+    "Truncation": {
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "enum": [
+            "none",
+            "sliding_window",
+            "summarization"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        },
+        "messages_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Messages Count"
+        },
+        "summary_ratio": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 1,
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary Ratio"
+        },
+        "preserve_recent_messages": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preserve Recent Messages"
+        }
+      },
+      "required": [
+        "strategy"
+      ],
+      "title": "Truncation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "name": {
+      "pattern": "^[A-Za-z][A-Za-z0-9]{0,31}$",
+      "title": "Name",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "model": {
+      "$ref": "#/$defs/Model"
+    },
+    "prompt": {
+      "default": "prompts/system.md",
+      "title": "Prompt",
+      "type": "string"
+    },
+    "skills": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Skill"
+      },
+      "title": "Skills",
+      "type": "array"
+    },
+    "tools": {
+      "default": [],
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Tools",
+      "type": "array"
+    },
+    "memory": {
+      "default": {
+        "mode": "disabled"
+      },
+      "discriminator": {
+        "mapping": {
+          "disabled": "#/$defs/MemoryDisabled",
+          "managed": "#/$defs/MemoryManaged"
+        },
+        "propertyName": "mode"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/MemoryDisabled"
+        },
+        {
+          "$ref": "#/$defs/MemoryManaged"
+        }
+      ],
+      "title": "Memory"
+    },
+    "limits": {
+      "$ref": "#/$defs/Limits",
+      "default": {
+        "max_iterations": null,
+        "timeout_seconds": null,
+        "max_tokens": null
+      }
+    },
+    "truncation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Truncation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tags": {
+      "additionalProperties": {
+        "maxLength": 256,
+        "type": "string"
+      },
+      "default": {},
+      "title": "Tags",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "model"
+  ],
+  "title": "AgentDefinition",
+  "type": "object"
+}
