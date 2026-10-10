@@ -53,6 +53,9 @@ def test_defaults():
         base(model={"provider": "open_ai", "model_id": "m", "credential": "arn:aws:x"}),  # ARNs not allowed
         base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "temperature": 3}),
         base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "api_key_arn": "x"}),
+        base(model={"provider": "open_ai", "model_id": "m", "credential": "c", "top_k": 40}),  # gemini only
+        base(tags={"team": "a#b"}),
+        base(tags={"te$m": "a"}),
     ],
 )
 def test_invalid(data):

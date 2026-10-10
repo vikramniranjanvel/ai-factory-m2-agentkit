@@ -1,0 +1,13 @@
+{
+  "name": "supportTriage",
+  "model": {
+    "provider": "open_ai",
+    "modelId": "gpt-6-luna",
+    "apiKeyArn": "arn:aws:bedrock-agentcore:us-east-1:167769274046:token-vault/default/apikeycredentialprovider/openai-key"
+  },
+  "tools": [],
+  "skills": [],
+  "memory": {
+    "mode": "disabled"
+  }
+}
