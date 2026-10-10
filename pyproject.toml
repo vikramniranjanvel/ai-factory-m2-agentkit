@@ -9,6 +9,9 @@ dependencies = [
     "pyyaml>=6",
 ]
 
+[project.scripts]
+agentkit = "agentkit.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8",
