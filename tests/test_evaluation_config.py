@@ -25,9 +25,7 @@ def test_v1_equivalent_loads():
 
 
 def test_minimal():
-    c = EvaluationConfig.model_validate(
-        {"schema_version": 1, "dataset_version": "1.0.0", "suites": {"smoke": {"dataset": "s.json"}}}
-    )
+    c = EvaluationConfig.model_validate({"schema_version": 1, "suites": {"smoke": {"dataset": "s.json"}}})
     assert c.checks == [] and c.evaluators == [] and c.gates == []
 
 
@@ -47,7 +45,7 @@ def test_evaluator_metric_names_match_v1(id_, metric):
     "overrides",
     [
         {"schema_version": 2},
-        {"dataset_version": "1.0"},
+        {"dataset_version": "1.0.0"},
         {"suites": {}},
         {"suites": {"Smoke": {"dataset": "s.json"}}},
         {"suites": {"smoke": {"dataset": "../s.json"}}},

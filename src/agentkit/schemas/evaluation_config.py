@@ -16,7 +16,6 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 
 from agentkit.schemas.agent_definition import _project_relative
 
-SEMVER = r"^\d+\.\d+\.\d+$"
 DETERMINISTIC_METRICS = ("completion_rate", "deterministic_pass_rate")
 
 
@@ -56,7 +55,6 @@ class Gate(_Strict):
 
 class EvaluationConfig(_Strict):
     schema_version: Literal[1]
-    dataset_version: Annotated[str, StringConstraints(pattern=SEMVER)]
     suites: Annotated[
         dict[Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_-]{0,31}$")], Suite], Field(min_length=1)
     ]

@@ -1,5 +1,4 @@
 schema_version: 1
-dataset_version: "0.1.0"
 
 suites:
   smoke: {dataset: smoke.json}
