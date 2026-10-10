@@ -2,6 +2,7 @@
   "$defs": {
     "Limits": {
       "additionalProperties": false,
+      "description": "Runtime limits for one invocation. Omitted values use the AgentCore defaults.",
       "properties": {
         "max_iterations": {
           "anyOf": [
@@ -14,6 +15,10 @@
             }
           ],
           "default": null,
+          "description": "Maximum reasoning/tool-use loop iterations.",
+          "examples": [
+            10
+          ],
           "title": "Max Iterations"
         },
         "timeout_seconds": {
@@ -27,6 +32,10 @@
             }
           ],
           "default": null,
+          "description": "Wall-clock timeout for one invocation, in seconds.",
+          "examples": [
+            120
+          ],
           "title": "Timeout Seconds"
         },
         "max_tokens": {
@@ -40,6 +49,10 @@
             }
           ],
           "default": null,
+          "description": "Maximum total tokens generated across one invocation.",
+          "examples": [
+            8192
+          ],
           "title": "Max Tokens"
         }
       },
@@ -48,9 +61,11 @@
     },
     "MemoryDisabled": {
       "additionalProperties": false,
+      "description": "No memory: every conversation starts empty.",
       "properties": {
         "mode": {
           "const": "disabled",
+          "description": "Memory off.",
           "title": "Mode",
           "type": "string"
         }
@@ -63,9 +78,11 @@
     },
     "MemoryManaged": {
       "additionalProperties": false,
+      "description": "AgentCore-managed memory.",
       "properties": {
         "mode": {
           "const": "managed",
+          "description": "Memory managed by AgentCore.",
           "title": "Mode",
           "type": "string"
         },
@@ -90,6 +107,13 @@
             }
           ],
           "default": null,
+          "description": "Long-term memory strategies to enable. Omit to use the AgentCore default.",
+          "examples": [
+            [
+              "SEMANTIC",
+              "SUMMARIZATION"
+            ]
+          ],
           "title": "Strategies"
         },
         "event_expiry_days": {
@@ -104,6 +128,10 @@
             }
           ],
           "default": null,
+          "description": "Days before memory events expire, 3 to 365.",
+          "examples": [
+            30
+          ],
           "title": "Event Expiry Days"
         }
       },
@@ -115,18 +143,28 @@
     },
     "Model": {
       "additionalProperties": false,
+      "description": "The foundation model the agent runs on.",
       "properties": {
         "provider": {
+          "description": "Model provider. `bedrock` uses the environment's execution role; every other provider needs a `credential`.",
           "enum": [
             "bedrock",
             "open_ai",
             "gemini",
             "lite_llm"
           ],
+          "examples": [
+            "bedrock"
+          ],
           "title": "Provider",
           "type": "string"
         },
         "model_id": {
+          "description": "Provider-specific model identifier.",
+          "examples": [
+            "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            "gpt-4.1"
+          ],
           "minLength": 1,
           "title": "Model Id",
           "type": "string"
@@ -142,6 +180,10 @@
             }
           ],
           "default": null,
+          "description": "Name of a credential registered in the environment (AgentKit resolves it to a provider ARN via SSM). Required for every provider except bedrock.",
+          "examples": [
+            "openai-prod"
+          ],
           "title": "Credential"
         },
         "api_format": {
@@ -159,6 +201,7 @@
             }
           ],
           "default": null,
+          "description": "Wire format for the provider. Only supported for bedrock (converse_stream, responses, chat_completions) and open_ai (responses, chat_completions).",
           "title": "Api Format"
         },
         "temperature": {
@@ -173,6 +216,10 @@
             }
           ],
           "default": null,
+          "description": "Sampling temperature, 0 to 2. Lower is more deterministic.",
+          "examples": [
+            0.2
+          ],
           "title": "Temperature"
         },
         "top_p": {
@@ -187,6 +234,10 @@
             }
           ],
           "default": null,
+          "description": "Nucleus sampling probability mass, 0 to 1.",
+          "examples": [
+            0.9
+          ],
           "title": "Top P"
         },
         "top_k": {
@@ -201,6 +252,10 @@
             }
           ],
           "default": null,
+          "description": "Sample only from the k most likely tokens, 0 to 500.",
+          "examples": [
+            250
+          ],
           "title": "Top K"
         },
         "max_tokens": {
@@ -214,6 +269,10 @@
             }
           ],
           "default": null,
+          "description": "Maximum tokens the model may generate per response.",
+          "examples": [
+            4096
+          ],
           "title": "Max Tokens"
         }
       },
@@ -229,6 +288,10 @@
       "description": "A skill kept in this project repository.",
       "properties": {
         "path": {
+          "description": "Path to the skill, relative to agent.yaml. No `..` and no absolute paths.",
+          "examples": [
+            "skills/escalation"
+          ],
           "title": "Path",
           "type": "string"
         }
@@ -241,8 +304,10 @@
     },
     "Truncation": {
       "additionalProperties": false,
+      "description": "How conversation history is shortened when it grows too long.",
       "properties": {
         "strategy": {
+          "description": "`none` keeps everything; `sliding_window` keeps the last N messages; `summarization` summarizes older messages.",
           "enum": [
             "none",
             "sliding_window",
@@ -262,6 +327,10 @@
             }
           ],
           "default": null,
+          "description": "Messages to keep. Only for `sliding_window`.",
+          "examples": [
+            20
+          ],
           "title": "Messages Count"
         },
         "summary_ratio": {
@@ -276,6 +345,10 @@
             }
           ],
           "default": null,
+          "description": "Fraction of history to summarize, between 0 and 1. Only for `summarization`.",
+          "examples": [
+            0.3
+          ],
           "title": "Summary Ratio"
         },
         "preserve_recent_messages": {
@@ -289,6 +362,10 @@
             }
           ],
           "default": null,
+          "description": "Most recent messages kept verbatim. Only for `summarization`.",
+          "examples": [
+            5
+          ],
           "title": "Preserve Recent Messages"
         }
       },
@@ -300,13 +377,19 @@
     }
   },
   "additionalProperties": false,
+  "description": "An agent as the project author describes it (`agent.yaml`).",
   "properties": {
     "schema_version": {
       "const": 1,
+      "description": "Version of this file format. Always 1 for now.",
       "title": "Schema Version",
       "type": "integer"
     },
     "name": {
+      "description": "Agent name: a letter, then letters and digits, up to 32 characters (no underscores or hyphens). The deployed harness is named `<environment prefix>_<name>`.",
+      "examples": [
+        "supportTriage"
+      ],
       "pattern": "^[A-Za-z][A-Za-z0-9]{0,31}$",
       "title": "Name",
       "type": "string"
@@ -322,18 +405,28 @@
         }
       ],
       "default": null,
+      "description": "What the agent does, up to 500 characters.",
+      "examples": [
+        "Triages support tickets."
+      ],
       "title": "Description"
     },
     "model": {
-      "$ref": "#/$defs/Model"
+      "$ref": "#/$defs/Model",
+      "description": "The foundation model and its sampling settings."
     },
     "prompt": {
       "default": "prompts/system.md",
+      "description": "Path to the system prompt, relative to agent.yaml.",
+      "examples": [
+        "prompts/system.md"
+      ],
       "title": "Prompt",
       "type": "string"
     },
     "skills": {
       "default": [],
+      "description": "Skills available to the agent.",
       "items": {
         "$ref": "#/$defs/Skill"
       },
@@ -342,6 +435,7 @@
     },
     "tools": {
       "default": [],
+      "description": "Reserved. Tools are not supported in this iteration; must be empty.",
       "items": {
         "additionalProperties": true,
         "type": "object"
@@ -353,6 +447,7 @@
       "default": {
         "mode": "disabled"
       },
+      "description": "Conversation memory. Off by default.",
       "discriminator": {
         "mapping": {
           "disabled": "#/$defs/MemoryDisabled",
@@ -376,7 +471,8 @@
         "max_iterations": null,
         "timeout_seconds": null,
         "max_tokens": null
-      }
+      },
+      "description": "Runtime limits for one invocation."
     },
     "truncation": {
       "anyOf": [
@@ -387,7 +483,8 @@
           "type": "null"
         }
       ],
-      "default": null
+      "default": null,
+      "description": "How to shorten long conversation history. Omit to use the AgentCore default."
     },
     "tags": {
       "additionalProperties": {
@@ -395,6 +492,12 @@
         "type": "string"
       },
       "default": {},
+      "description": "Resource tags (at most 40). Keys starting with `agentcore:`, `agentkit:` or `aws:` are reserved.",
+      "examples": [
+        {
+          "team": "support"
+        }
+      ],
       "title": "Tags",
       "type": "object"
     }
