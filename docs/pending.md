@@ -7,7 +7,7 @@ Tick items off as they land. Details of the documentation plan are in `schema-do
 - [x] Step 1: descriptions, examples and class docstrings on every field (agent definition, evaluation config, dataset); a test fails if one is missing
 - [ ] Step 2: generate `docs/reference/<schema>.md` from the JSON Schema (key, type, required or default, description); run it from the pre-commit hook and the CI diff check
 - [ ] Step 3: `agentkit init` scaffolds commented `agent.yaml`, `evaluation.yaml` and a sample dataset; the templates are validated in tests; add one worked example (three scenarios, check results, gate table)
-- [ ] Step 4: error messages that teach: file, key path (`gates[2].metric`), allowed values, "did you mean" for misspelled keys and values
+- [ ] Step 4: error messages that teach: file, key path and allowed values are done in `agentkit validate`; still to do: "did you mean" for misspelled keys and values
 - [ ] Step 5: `agentkit explain <schema or field>` prints the descriptions in the terminal
 
 ## Small schema follow-ups
