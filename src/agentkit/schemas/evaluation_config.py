@@ -29,8 +29,13 @@ def evaluator_metric(evaluator_id: str) -> str:
 
 
 class Suite(_Strict):
-    dataset: str  # path to a dataset file, relative to evaluation.yaml
-    score: bool = False  # also run AgentCore batch evaluation (slow: waits for telemetry)
+    """A named set of scenarios (one dataset file)."""
+
+    dataset: str = Field(description="Path to the dataset file, relative to evaluation.yaml.", examples=["smoke.json"])
+    score: bool = Field(
+        default=False,
+        description="Also run AgentCore batch evaluation on this suite's conversations. Slower: waits for telemetry.",
+    )
 
     _relative = field_validator("dataset")(_project_relative)
 
@@ -38,29 +43,61 @@ class Suite(_Strict):
 class Check(_Strict):
     """Deterministic check on the final reply. `expected_from` is a dotted path into the scenario (expected.answer)."""
 
-    type: Literal["response_contains", "response_not_contains", "response_matches_regex"]
-    expected_from: Annotated[str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")]
+    type: Literal["response_contains", "response_not_contains", "response_matches_regex"] = Field(
+        description="How the reply is compared with the expected value."
+    )
+    expected_from: Annotated[str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")] = (
+        Field(
+            description="Dotted path to the expected value inside each scenario. Scenarios without it skip the check.",
+            examples=["expected.answer"],
+        )
+    )
 
 
 class Evaluator(_Strict):
-    id: Annotated[str, StringConstraints(pattern=r"^Builtin\.[A-Za-z]+$")]
-    # Score at or above which one scenario counts as passed. Omitted: the runner's per-evaluator default applies.
-    min_score: Annotated[float, Field(ge=0, le=1)] | None = None
+    """An AgentCore built-in evaluator that scores conversations in suites with `score: true`."""
+
+    id: Annotated[str, StringConstraints(pattern=r"^Builtin\.[A-Za-z]+$")] = Field(
+        description="Built-in evaluator id. Its gate metric is the snake_case name plus `_pass_rate`.",
+        examples=["Builtin.GoalSuccessRate", "Builtin.Helpfulness"],
+    )
+    min_score: Annotated[float, Field(ge=0, le=1)] | None = Field(
+        default=None,
+        description=(
+            "Score at or above which one scenario counts as passed. Omit to use the runner's per-evaluator default."
+        ),
+        examples=[0.67],
+    )
 
 
 class Gate(_Strict):
-    metric: str  # completion_rate, deterministic_pass_rate, or <evaluator>_pass_rate
-    min: Annotated[float, Field(ge=0, le=1)]  # the run fails when the metric is below this
+    """A pass threshold on a run-level metric."""
+
+    metric: str = Field(
+        description=(
+            "`completion_rate`, `deterministic_pass_rate`, or `<evaluator>_pass_rate` for a declared evaluator."
+        ),
+        examples=["completion_rate", "goal_success_rate_pass_rate"],
+    )
+    min: Annotated[float, Field(ge=0, le=1)] = Field(
+        description="The run fails when the metric is below this value, 0 to 1.", examples=[1.0]
+    )
 
 
 class EvaluationConfig(_Strict):
-    schema_version: Literal[1]
+    """How an agent is tested (`evals/evaluation.yaml`) and what must pass."""
+
+    schema_version: Literal[1] = Field(description="Version of this file format. Always 1 for now.")
     suites: Annotated[
         dict[Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_-]{0,31}$")], Suite], Field(min_length=1)
-    ]
-    checks: list[Check] = []
-    evaluators: list[Evaluator] = []
-    gates: list[Gate] = []
+    ] = Field(description="Named suites: lowercase name to dataset. At least one.")
+    checks: list[Check] = Field(
+        default=[], description="Deterministic checks applied to every scenario in every suite."
+    )
+    evaluators: list[Evaluator] = Field(
+        default=[], description="Built-in evaluators; only run for suites with `score: true`."
+    )
+    gates: list[Gate] = Field(default=[], description="Thresholds the run must meet; any miss fails the run.")
 
     @model_validator(mode="after")
     def _consistent(self) -> EvaluationConfig:

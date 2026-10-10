@@ -5,6 +5,7 @@
       "description": "Deterministic check on the final reply. `expected_from` is a dotted path into the scenario (expected.answer).",
       "properties": {
         "type": {
+          "description": "How the reply is compared with the expected value.",
           "enum": [
             "response_contains",
             "response_not_contains",
@@ -14,6 +15,10 @@
           "type": "string"
         },
         "expected_from": {
+          "description": "Dotted path to the expected value inside each scenario. Scenarios without it skip the check.",
+          "examples": [
+            "expected.answer"
+          ],
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$",
           "title": "Expected From",
           "type": "string"
@@ -28,8 +33,14 @@
     },
     "Evaluator": {
       "additionalProperties": false,
+      "description": "An AgentCore built-in evaluator that scores conversations in suites with `score: true`.",
       "properties": {
         "id": {
+          "description": "Built-in evaluator id. Its gate metric is the snake_case name plus `_pass_rate`.",
+          "examples": [
+            "Builtin.GoalSuccessRate",
+            "Builtin.Helpfulness"
+          ],
           "pattern": "^Builtin\\.[A-Za-z]+$",
           "title": "Id",
           "type": "string"
@@ -46,6 +57,10 @@
             }
           ],
           "default": null,
+          "description": "Score at or above which one scenario counts as passed. Omit to use the runner's per-evaluator default.",
+          "examples": [
+            0.67
+          ],
           "title": "Min Score"
         }
       },
@@ -57,12 +72,22 @@
     },
     "Gate": {
       "additionalProperties": false,
+      "description": "A pass threshold on a run-level metric.",
       "properties": {
         "metric": {
+          "description": "`completion_rate`, `deterministic_pass_rate`, or `<evaluator>_pass_rate` for a declared evaluator.",
+          "examples": [
+            "completion_rate",
+            "goal_success_rate_pass_rate"
+          ],
           "title": "Metric",
           "type": "string"
         },
         "min": {
+          "description": "The run fails when the metric is below this value, 0 to 1.",
+          "examples": [
+            1.0
+          ],
           "maximum": 1,
           "minimum": 0,
           "title": "Min",
@@ -78,13 +103,19 @@
     },
     "Suite": {
       "additionalProperties": false,
+      "description": "A named set of scenarios (one dataset file).",
       "properties": {
         "dataset": {
+          "description": "Path to the dataset file, relative to evaluation.yaml.",
+          "examples": [
+            "smoke.json"
+          ],
           "title": "Dataset",
           "type": "string"
         },
         "score": {
           "default": false,
+          "description": "Also run AgentCore batch evaluation on this suite's conversations. Slower: waits for telemetry.",
           "title": "Score",
           "type": "boolean"
         }
@@ -97,13 +128,16 @@
     }
   },
   "additionalProperties": false,
+  "description": "How an agent is tested (`evals/evaluation.yaml`) and what must pass.",
   "properties": {
     "schema_version": {
       "const": 1,
+      "description": "Version of this file format. Always 1 for now.",
       "title": "Schema Version",
       "type": "integer"
     },
     "suites": {
+      "description": "Named suites: lowercase name to dataset. At least one.",
       "minProperties": 1,
       "patternProperties": {
         "^[a-z][a-z0-9_-]{0,31}$": {
@@ -115,6 +149,7 @@
     },
     "checks": {
       "default": [],
+      "description": "Deterministic checks applied to every scenario in every suite.",
       "items": {
         "$ref": "#/$defs/Check"
       },
@@ -123,6 +158,7 @@
     },
     "evaluators": {
       "default": [],
+      "description": "Built-in evaluators; only run for suites with `score: true`.",
       "items": {
         "$ref": "#/$defs/Evaluator"
       },
@@ -131,6 +167,7 @@
     },
     "gates": {
       "default": [],
+      "description": "Thresholds the run must meet; any miss fails the run.",
       "items": {
         "$ref": "#/$defs/Gate"
       },

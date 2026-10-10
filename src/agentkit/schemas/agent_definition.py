@@ -31,16 +31,46 @@ def _project_relative(value: str) -> str:
 
 
 class Model(_Strict):
-    provider: Literal["bedrock", "open_ai", "gemini", "lite_llm"]
-    model_id: Annotated[str, StringConstraints(min_length=1, strip_whitespace=True)]
-    # Name of a credential registered in the environment (resolved to a provider ARN via SSM). Required for every
-    # provider except bedrock, which uses the execution role.
-    credential: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")] | None = None
-    api_format: Literal["converse_stream", "responses", "chat_completions"] | None = None
-    temperature: Annotated[float, Field(ge=0, le=2)] | None = None
-    top_p: Annotated[float, Field(ge=0, le=1)] | None = None
-    top_k: Annotated[int, Field(ge=0, le=500)] | None = None
-    max_tokens: Annotated[int, Field(ge=1)] | None = None
+    """The foundation model the agent runs on."""
+
+    provider: Literal["bedrock", "open_ai", "gemini", "lite_llm"] = Field(
+        description=(
+            "Model provider. `bedrock` uses the environment's execution role; every other provider needs a "
+            "`credential`."
+        ),
+        examples=["bedrock"],
+    )
+    model_id: Annotated[str, StringConstraints(min_length=1, strip_whitespace=True)] = Field(
+        description="Provider-specific model identifier.",
+        examples=["us.anthropic.claude-sonnet-4-5-20250929-v1:0", "gpt-4.1"],
+    )
+    credential: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")] | None = Field(
+        default=None,
+        description=(
+            "Name of a credential registered in the environment (AgentKit resolves it to a provider ARN via SSM). "
+            "Required for every provider except bedrock."
+        ),
+        examples=["openai-prod"],
+    )
+    api_format: Literal["converse_stream", "responses", "chat_completions"] | None = Field(
+        default=None,
+        description=(
+            "Wire format for the provider. Only supported for bedrock (converse_stream, responses, chat_completions) "
+            "and open_ai (responses, chat_completions)."
+        ),
+    )
+    temperature: Annotated[float, Field(ge=0, le=2)] | None = Field(
+        default=None, description="Sampling temperature, 0 to 2. Lower is more deterministic.", examples=[0.2]
+    )
+    top_p: Annotated[float, Field(ge=0, le=1)] | None = Field(
+        default=None, description="Nucleus sampling probability mass, 0 to 1.", examples=[0.9]
+    )
+    top_k: Annotated[int, Field(ge=0, le=500)] | None = Field(
+        default=None, description="Sample only from the k most likely tokens, 0 to 500.", examples=[250]
+    )
+    max_tokens: Annotated[int, Field(ge=1)] | None = Field(
+        default=None, description="Maximum tokens the model may generate per response.", examples=[4096]
+    )
 
     @model_validator(mode="after")
     def _provider_rules(self) -> Model:
@@ -66,40 +96,76 @@ class Model(_Strict):
 class Skill(_Strict):
     """A skill kept in this project repository."""
 
-    path: str
+    path: str = Field(
+        description="Path to the skill, relative to agent.yaml. No `..` and no absolute paths.",
+        examples=["skills/escalation"],
+    )
 
     _check_path = field_validator("path")(_project_relative)
 
 
 class MemoryDisabled(_Strict):
-    mode: Literal["disabled"]
+    """No memory: every conversation starts empty."""
+
+    mode: Literal["disabled"] = Field(description="Memory off.")
 
 
 class MemoryManaged(_Strict):
-    mode: Literal["managed"]
+    """AgentCore-managed memory."""
+
+    mode: Literal["managed"] = Field(description="Memory managed by AgentCore.")
     strategies: (
         Annotated[
             list[Literal["SEMANTIC", "SUMMARIZATION", "USER_PREFERENCE", "EPISODIC"]], Field(min_length=1, max_length=4)
         ]
         | None
-    ) = None
-    event_expiry_days: Annotated[int, Field(ge=3, le=365)] | None = None
+    ) = Field(
+        default=None,
+        description="Long-term memory strategies to enable. Omit to use the AgentCore default.",
+        examples=[["SEMANTIC", "SUMMARIZATION"]],
+    )
+    event_expiry_days: Annotated[int, Field(ge=3, le=365)] | None = Field(
+        default=None, description="Days before memory events expire, 3 to 365.", examples=[30]
+    )
 
 
 Memory = Annotated[MemoryDisabled | MemoryManaged, Field(discriminator="mode")]
 
 
 class Limits(_Strict):
-    max_iterations: Annotated[int, Field(ge=1)] | None = None
-    timeout_seconds: Annotated[int, Field(ge=1)] | None = None
-    max_tokens: Annotated[int, Field(ge=1)] | None = None
+    """Runtime limits for one invocation. Omitted values use the AgentCore defaults."""
+
+    max_iterations: Annotated[int, Field(ge=1)] | None = Field(
+        default=None, description="Maximum reasoning/tool-use loop iterations.", examples=[10]
+    )
+    timeout_seconds: Annotated[int, Field(ge=1)] | None = Field(
+        default=None, description="Wall-clock timeout for one invocation, in seconds.", examples=[120]
+    )
+    max_tokens: Annotated[int, Field(ge=1)] | None = Field(
+        default=None, description="Maximum total tokens generated across one invocation.", examples=[8192]
+    )
 
 
 class Truncation(_Strict):
-    strategy: Literal["none", "sliding_window", "summarization"]
-    messages_count: Annotated[int, Field(ge=1)] | None = None  # sliding_window only
-    summary_ratio: Annotated[float, Field(gt=0, lt=1)] | None = None  # summarization only
-    preserve_recent_messages: Annotated[int, Field(ge=0)] | None = None  # summarization only
+    """How conversation history is shortened when it grows too long."""
+
+    strategy: Literal["none", "sliding_window", "summarization"] = Field(
+        description=(
+            "`none` keeps everything; `sliding_window` keeps the last N messages; `summarization` summarizes older "
+            "messages."
+        )
+    )
+    messages_count: Annotated[int, Field(ge=1)] | None = Field(
+        default=None, description="Messages to keep. Only for `sliding_window`.", examples=[20]
+    )
+    summary_ratio: Annotated[float, Field(gt=0, lt=1)] | None = Field(
+        default=None,
+        description="Fraction of history to summarize, between 0 and 1. Only for `summarization`.",
+        examples=[0.3],
+    )
+    preserve_recent_messages: Annotated[int, Field(ge=0)] | None = Field(
+        default=None, description="Most recent messages kept verbatim. Only for `summarization`.", examples=[5]
+    )
 
     @model_validator(mode="after")
     def _strategy_rules(self) -> Truncation:
@@ -112,18 +178,40 @@ class Truncation(_Strict):
 
 
 class AgentDefinition(_Strict):
-    schema_version: Literal[1]
-    name: Annotated[str, StringConstraints(pattern=rf"^[A-Za-z][A-Za-z0-9]{{0,{MAX_NAME_LENGTH - 1}}}$")]
-    description: Annotated[str, StringConstraints(max_length=500)] | None = None
-    model: Model
-    prompt: str = "prompts/system.md"
-    skills: list[Skill] = []
+    """An agent as the project author describes it (`agent.yaml`)."""
+
+    schema_version: Literal[1] = Field(description="Version of this file format. Always 1 for now.")
+    name: Annotated[str, StringConstraints(pattern=rf"^[A-Za-z][A-Za-z0-9]{{0,{MAX_NAME_LENGTH - 1}}}$")] = Field(
+        description=(
+            f"Agent name: a letter, then letters and digits, up to {MAX_NAME_LENGTH} characters (no underscores or "
+            "hyphens). The deployed harness is named `<environment prefix>_<name>`."
+        ),
+        examples=["supportTriage"],
+    )
+    description: Annotated[str, StringConstraints(max_length=500)] | None = Field(
+        default=None, description="What the agent does, up to 500 characters.", examples=["Triages support tickets."]
+    )
+    model: Model = Field(description="The foundation model and its sampling settings.")
+    prompt: str = Field(
+        default="prompts/system.md",
+        description="Path to the system prompt, relative to agent.yaml.",
+        examples=["prompts/system.md"],
+    )
+    skills: list[Skill] = Field(default=[], description="Skills available to the agent.")
     # Reserved: no tools or MCP gateway in this iteration (see implementation plan, decision 2).
-    tools: list[dict] = []
-    memory: Memory = MemoryDisabled(mode="disabled")
-    limits: Limits = Limits()
-    truncation: Truncation | None = None
-    tags: dict[str, Annotated[str, StringConstraints(max_length=256)]] = {}
+    tools: list[dict] = Field(
+        default=[], description="Reserved. Tools are not supported in this iteration; must be empty."
+    )
+    memory: Memory = Field(default=MemoryDisabled(mode="disabled"), description="Conversation memory. Off by default.")
+    limits: Limits = Field(default=Limits(), description="Runtime limits for one invocation.")
+    truncation: Truncation | None = Field(
+        default=None, description="How to shorten long conversation history. Omit to use the AgentCore default."
+    )
+    tags: dict[str, Annotated[str, StringConstraints(max_length=256)]] = Field(
+        default={},
+        description="Resource tags (at most 40). Keys starting with `agentcore:`, `agentkit:` or `aws:` are reserved.",
+        examples=[{"team": "support"}],
+    )
 
     _check_prompt = field_validator("prompt")(_project_relative)
 
