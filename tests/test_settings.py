@@ -21,7 +21,7 @@ class FakeSsm:
         return self
 
     def paginate(self, Path, Recursive, WithDecryption):  # noqa: N803
-        assert Recursive and WithDecryption
+        assert Recursive and not WithDecryption  # secrets under credentials/ stay encrypted
         items = [{"Name": k, "Value": v} for k, v in self.params.items() if k.startswith(Path + "/")]
         yield {"Parameters": items[:3]}
         yield {"Parameters": items[3:]}

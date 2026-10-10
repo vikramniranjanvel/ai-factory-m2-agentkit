@@ -32,17 +32,17 @@ def compile_(**overrides):
 
 
 def test_matches_v1_harness_json():
-    """The v1 supportTriage harness.json is the same agent; only name, tags and memory shape differ by design."""
+    """The v1 supportTriage harness.json is the same agent: model, tools, skills, memory and name are identical."""
     spec = compile_().spec
     v1 = json.loads(V1_HARNESS.read_text())
     assert spec["model"] == v1["model"]
     assert (spec["tools"], spec["skills"], spec["memory"]) == (v1["tools"], v1["skills"], v1["memory"])
-    assert spec["name"] == "dev_supportTriage"  # v1 deployed name was <env>_<agent> via the CDK
+    assert spec["name"] == v1["name"]  # the <env>_ prefix is added by the patched CDK at deploy time
 
 
 def test_name_credential_and_tags():
     spec = compile_().spec
-    assert spec["name"] == "dev_supportTriage"
+    assert spec["name"] == "supportTriage"
     assert spec["model"]["apiKeyArn"] == (
         "arn:aws:bedrock-agentcore:us-east-1:167769274046:token-vault/default/apikeycredentialprovider/openai-key"
     )
@@ -117,6 +117,12 @@ def test_name_too_long_for_prefix():
     big_prefix = Settings(**{**SETTINGS.model_dump(), "resource_prefix": "abcdefgh"})  # 8 + 1 + 32 = 41
     with pytest.raises(CompileError, match="41 characters"):
         harness_name(big_prefix, long)
+
+
+def test_deployed_name_length_is_checked_when_compiling():
+    big_prefix = Settings(**{**SETTINGS.model_dump(), "resource_prefix": "abcdefgh"})
+    with pytest.raises(CompileError, match="41 characters"):
+        compile_harness(definition(name="a" * 32), big_prefix, "dev", FIXTURE)
 
 
 def test_empty_prompt(tmp_path):
