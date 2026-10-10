@@ -69,9 +69,9 @@ def ssm_prefix() -> str:
 
 
 def _parameters(client: Any, path: str) -> dict[str, str]:
-    """Parameters under `path` as {relative key: value}."""
+    """Parameters under `path` as {relative key: value}. SecureStrings are not decrypted: secrets are read on demand."""
     try:
-        pages = client.get_paginator("get_parameters_by_path").paginate(Path=path, Recursive=True, WithDecryption=True)
+        pages = client.get_paginator("get_parameters_by_path").paginate(Path=path, Recursive=True, WithDecryption=False)
         return {p["Name"].removeprefix(path + "/"): p["Value"] for page in pages for p in page["Parameters"]}
     except Exception as exc:
         raise SettingsError(f"could not read SSM parameters under {path}: {exc}") from exc

@@ -1,9 +1,11 @@
 """Compile an agent definition (`agent.yaml`) into the native AgentCore `harness.json`.
 
 Authored keys are snake_case and environment-free; the output is the native camelCase spec with the environment's
-values filled in from SSM settings: the deployed name (`<resource_prefix>_<name>`), the credential provider ARN and
-AgentKit's own tags. The system prompt and skills are not inlined: they are returned as files to copy into the harness
-directory (the prompt as `system-prompt.md`, which the native CLI discovers).
+values filled in from SSM settings: the credential provider ARN and AgentKit's own tags. The spec keeps the plain agent
+name; the deployed name `<resource_prefix>_<name>` is produced by the patched CDK template (see assemble.py), and
+`harness_name` checks that it fits the native 40 character limit. The system prompt and skills are not inlined: they
+are returned as files to copy into the harness directory (the prompt as `system-prompt.md`, which the native CLI
+discovers).
 """
 
 from __future__ import annotations
@@ -105,6 +107,7 @@ def _truncation(definition: AgentDefinition) -> dict | None:
 
 def compile_harness(definition: AgentDefinition, settings: Settings, env: str, root: str | Path) -> CompiledHarness:
     """Build the native harness spec for `definition` in the given environment. `root` is the project directory."""
+    harness_name(settings, definition)  # fail early if the deployed name would be too long
     root = Path(root)
     prompt = root / definition.prompt
     if not prompt.read_text().strip():
@@ -119,7 +122,7 @@ def compile_harness(definition: AgentDefinition, settings: Settings, env: str, r
 
     spec = _drop_none(
         {
-            "name": harness_name(settings, definition),
+            "name": definition.name,
             "model": _model(definition, settings),
             "tools": [],
             "skills": skills,
