@@ -1,0 +1,141 @@
+{
+  "$defs": {
+    "Expected": {
+      "additionalProperties": false,
+      "description": "What the final reply must satisfy in the deterministic checks.",
+      "properties": {
+        "answer": {
+          "description": "Pattern the final reply is checked against. A regular expression (Python `re` syntax), so a plain word also works; use `(?i)` for case-insensitive.",
+          "examples": [
+            "P1",
+            "(?i)split"
+          ],
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "answer"
+      ],
+      "title": "Expected",
+      "type": "object"
+    },
+    "Scenario": {
+      "additionalProperties": false,
+      "description": "One test conversation.",
+      "properties": {
+        "scenario_id": {
+          "description": "Unique id within the dataset: letters, digits, `_` and `-`, up to 64 characters.",
+          "examples": [
+            "smoke-001-login-loop"
+          ],
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "turns": {
+          "description": "User messages, sent in order in one session. At least one.",
+          "items": {
+            "$ref": "#/$defs/Turn"
+          },
+          "minItems": 1,
+          "title": "Turns",
+          "type": "array"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expected"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Expected answer for the deterministic checks. Omit to skip the checks."
+        },
+        "assertions": {
+          "default": [],
+          "description": "Plain-language statements about what the agent should do. Used by AgentCore evaluators (for example GoalSuccessRate) in suites with `score: true`.",
+          "examples": [
+            [
+              "The agent says to clear the cookie nb_sess_v4, with priority P2"
+            ]
+          ],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Assertions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "turns"
+      ],
+      "title": "Scenario",
+      "type": "object"
+    },
+    "Turn": {
+      "additionalProperties": false,
+      "description": "One user message sent to the agent.",
+      "properties": {
+        "input": {
+          "description": "The user message.",
+          "examples": [
+            "TCK-3190: user is stuck in a login loop"
+          ],
+          "minLength": 1,
+          "title": "Input",
+          "type": "string"
+        },
+        "expected_response": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reference reply for this turn, passed to AgentCore evaluators as ground truth. Optional.",
+          "title": "Expected Response"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "title": "Turn",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A list of scenarios.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Version of this file format. Always 1 for now.",
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scenarios": {
+      "description": "The scenarios, run in order. At least one.",
+      "items": {
+        "$ref": "#/$defs/Scenario"
+      },
+      "minItems": 1,
+      "title": "Scenarios",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scenarios"
+  ],
+  "title": "Dataset",
+  "type": "object"
+}

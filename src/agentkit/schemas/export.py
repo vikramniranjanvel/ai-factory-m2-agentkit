@@ -6,12 +6,14 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from agentkit.schemas.agent_definition import AgentDefinition
+from agentkit.schemas.dataset import Dataset
 from agentkit.schemas.evaluation_config import EvaluationConfig
 
 OUT = Path(__file__).resolve().parents[3] / "schemas"
 SCHEMAS: dict[str, type[BaseModel]] = {
     "agent-definition.schema.json": AgentDefinition,
     "evaluation-config.schema.json": EvaluationConfig,
+    "dataset.schema.json": Dataset,
 }
 
 if __name__ == "__main__":

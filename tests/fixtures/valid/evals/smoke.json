@@ -1,12 +1,27 @@
-[
-  {
-    "scenario_id": "smoke-001-login-loop",
-    "turns": [{ "input": "TCK-3190: user is stuck in a login loop after a password reset" }],
-    "expected": { "answer": "nb_sess_v4" }
-  },
-  {
-    "scenario_id": "smoke-002-stale-dashboard",
-    "turns": [{ "input": "TCK-4411: the dashboard shows stale data" }],
-    "expected": { "answer": "RB-26" }
-  }
-]
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "scenario_id": "smoke-001-login-loop",
+      "turns": [
+        {
+          "input": "TCK-3190: user is stuck in a login loop after a password reset"
+        }
+      ],
+      "expected": {
+        "answer": "nb_sess_v4"
+      }
+    },
+    {
+      "scenario_id": "smoke-002-stale-dashboard",
+      "turns": [
+        {
+          "input": "TCK-4411: the dashboard shows stale data"
+        }
+      ],
+      "expected": {
+        "answer": "RB-26"
+      }
+    }
+  ]
+}

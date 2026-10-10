@@ -1,72 +1,75 @@
-[
-  {
-    "scenario_id": "full-001-upload-limit",
-    "turns": [
-      {
-        "input": "TCK-1042: uploads fail for files above 83 MB"
-      }
-    ],
-    "expected": {
-      "answer": "(?i)split"
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "scenario_id": "full-001-upload-limit",
+      "turns": [
+        {
+          "input": "TCK-1042: uploads fail for files above 83 MB"
+        }
+      ],
+      "expected": {
+        "answer": "(?i)split"
+      },
+      "assertions": [
+        "The agent says to split the file because uploads above 83 MB fail, with priority P3"
+      ]
     },
-    "assertions": [
-      "The agent says to split the file because uploads above 83 MB fail, with priority P3"
-    ]
-  },
-  {
-    "scenario_id": "full-002-rate-limit",
-    "turns": [
-      {
-        "input": "TCK-2077: we keep getting 429 errors from the API"
-      }
-    ],
-    "expected": {
-      "answer": "417"
+    {
+      "scenario_id": "full-002-rate-limit",
+      "turns": [
+        {
+          "input": "TCK-2077: we keep getting 429 errors from the API"
+        }
+      ],
+      "expected": {
+        "answer": "417"
+      },
+      "assertions": [
+        "The agent says the limit is 417 requests per minute and to back off for 60 seconds, with priority P2"
+      ]
     },
-    "assertions": [
-      "The agent says the limit is 417 requests per minute and to back off for 60 seconds, with priority P2"
-    ]
-  },
-  {
-    "scenario_id": "full-003-login-loop",
-    "turns": [
-      {
-        "input": "TCK-3190: user is stuck in a login loop after a password reset"
-      }
-    ],
-    "expected": {
-      "answer": "nb_sess_v4"
+    {
+      "scenario_id": "full-003-login-loop",
+      "turns": [
+        {
+          "input": "TCK-3190: user is stuck in a login loop after a password reset"
+        }
+      ],
+      "expected": {
+        "answer": "nb_sess_v4"
+      },
+      "assertions": [
+        "The agent says to clear the cookie nb_sess_v4, with priority P2"
+      ]
     },
-    "assertions": [
-      "The agent says to clear the cookie nb_sess_v4, with priority P2"
-    ]
-  },
-  {
-    "scenario_id": "full-004-priority",
-    "turns": [
-      {
-        "input": "TCK-4411: the dashboard shows stale data. What priority is this?"
-      }
-    ],
-    "expected": {
-      "answer": "P1"
+    {
+      "scenario_id": "full-004-priority",
+      "turns": [
+        {
+          "input": "TCK-4411: the dashboard shows stale data. What priority is this?"
+        }
+      ],
+      "expected": {
+        "answer": "P1"
+      },
+      "assertions": [
+        "The agent says the priority is P1"
+      ]
     },
-    "assertions": [
-      "The agent says the priority is P1"
-    ]
-  },
-  {
-    "scenario_id": "full-005-unknown-ticket",
-    "turns": [
-      {
-        "input": "TCK-9999: the printer is on fire"
+    {
+      "scenario_id": "full-005-unknown-ticket",
+      "turns": [
+        {
+          "input": "TCK-9999: the printer is on fire"
+        }
+      ],
+      "assertions": [
+        "The agent says it cannot match the ticket and does not invent a resolution"
+      ],
+      "expected": {
+        "answer": "(?i)can.?t (tell|identify|find|match)|cannot (tell|identify|find|match)|not sure|don.?t know|do not know|no matching|unable|not familiar|no known|isn.?t in the known|not in the known"
       }
-    ],
-    "assertions": [
-      "The agent says it cannot match the ticket and does not invent a resolution"
-    ],
-    "expected": {
-      "answer": "(?i)can.?t (tell|identify|find|match)|cannot (tell|identify|find|match)|not sure|don.?t know|do not know|no matching|unable|not familiar|no known|isn.?t in the known|not in the known"
     }
-  }
-]
+  ]
+}
