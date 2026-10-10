@@ -7,6 +7,7 @@ file into a native harness.json at deploy time. Keys are snake_case; the compile
 
 from __future__ import annotations
 
+import re
 from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal
 
@@ -17,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 # deploy time, the cap here leaves room for a prefix such as `test_`.
 MAX_NAME_LENGTH = 32
 RESERVED_TAG_PREFIXES = ("agentcore:", "agentkit:", "aws:")
+TAG_CHARS = re.compile(r"^[\w\s.:/=+\-@]*$")  # the characters AWS tagging (and the native schema) allow
 
 
 class _Strict(BaseModel):
@@ -66,7 +68,9 @@ class Model(_Strict):
         default=None, description="Nucleus sampling probability mass, 0 to 1.", examples=[0.9]
     )
     top_k: Annotated[int, Field(ge=0, le=500)] | None = Field(
-        default=None, description="Sample only from the k most likely tokens, 0 to 500.", examples=[250]
+        default=None,
+        description="Sample only from the k most likely tokens, 0 to 500. Gemini models only.",
+        examples=[250],
     )
     max_tokens: Annotated[int, Field(ge=1)] | None = Field(
         default=None, description="Maximum tokens the model may generate per response.", examples=[4096]
@@ -78,6 +82,8 @@ class Model(_Strict):
             raise ValueError("bedrock models use the execution role; remove 'credential'")
         if self.provider != "bedrock" and self.credential is None:
             raise ValueError(f"provider '{self.provider}' requires 'credential'")
+        if self.top_k is not None and self.provider != "gemini":
+            raise ValueError("'top_k' is only supported for provider 'gemini'")
         if self.api_format is not None:
             allowed = {
                 "bedrock": {"converse_stream", "responses", "chat_completions"},
@@ -232,6 +238,8 @@ class AgentDefinition(_Strict):
                 raise ValueError(f"tag key {key!r} must be 1-128 characters")
             if key.lower().startswith(RESERVED_TAG_PREFIXES):
                 raise ValueError(f"tag key {key!r} uses a reserved prefix {RESERVED_TAG_PREFIXES}")
+            if not TAG_CHARS.match(key) or not TAG_CHARS.match(value[key]):
+                raise ValueError(f"tag {key!r}: only letters, digits, spaces and _ . : / = + - @ are allowed")
         return value
 
 

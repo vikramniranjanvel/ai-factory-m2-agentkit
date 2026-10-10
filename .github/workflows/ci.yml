@@ -22,6 +22,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
+      - name: Native AgentCore CLI (the compiler tests validate against its harness schema)
+        run: npm install -g @aws/agentcore@0.31.1
       - name: Format
         run: uv run ruff format --check .
       - name: Lint

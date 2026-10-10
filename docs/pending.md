@@ -14,3 +14,9 @@ Tick items off as they land. Details of the documentation plan are in `schema-do
 
 - [ ] Editor header for dataset JSON files (JSON has no comments; would need an optional `$schema` key)
 - [ ] `response_contains` and `response_not_contains` read `expected.answer`, which is documented as a regex; decide whether to add a separate plain-text field or a rule
+
+## Compiler follow-ups
+
+- [ ] Confirm how the native CLI resolves a skill `path` (we emit it relative to the harness directory and copy the skill there); no skills are deployed yet
+- [ ] Execution role and network settings are not set (the native CDK creates the role, as in v1); revisit if a project needs them
+- [ ] `agentkit compile` CLI command (the function exists; the command comes with `deploy`)
