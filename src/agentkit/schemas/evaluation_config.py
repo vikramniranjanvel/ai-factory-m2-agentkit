@@ -15,6 +15,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from agentkit.schemas.agent_definition import _project_relative
+from agentkit.schemas.dataset import load_dataset
 
 DETERMINISTIC_METRICS = ("completion_rate", "deterministic_pass_rate")
 
@@ -124,7 +125,7 @@ class EvaluationConfig(_Strict):
 
 
 def load_evaluation_config(path: str | Path) -> EvaluationConfig:
-    """Parse and validate an evaluation.yaml, and check that the datasets it names exist next to it."""
+    """Parse and validate an evaluation.yaml and the datasets it names (they must exist next to it)."""
     path = Path(path)
     data = yaml.safe_load(path.read_text())
     if not isinstance(data, dict):
@@ -133,4 +134,10 @@ def load_evaluation_config(path: str | Path) -> EvaluationConfig:
     missing = [s.dataset for s in config.suites.values() if not (path.parent / s.dataset).exists()]
     if missing:
         raise ValueError(f"{path}: referenced files not found: {', '.join(sorted(set(missing)))}")
+    for name, suite in config.suites.items():
+        dataset = load_dataset(path.parent / suite.dataset)
+        if suite.score:
+            bare = [s.scenario_id for s in dataset.scenarios if not s.assertions]
+            if bare:
+                raise ValueError(f"{path}: suite '{name}' has 'score: true' but scenarios have no assertions: {bare}")
     return config
