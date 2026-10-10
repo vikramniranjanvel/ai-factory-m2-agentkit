@@ -1,0 +1,153 @@
+{
+  "$defs": {
+    "Check": {
+      "additionalProperties": false,
+      "description": "Deterministic check on the final reply. `expected_from` is a dotted path into the scenario (expected.answer).",
+      "properties": {
+        "type": {
+          "enum": [
+            "response_contains",
+            "response_not_contains",
+            "response_matches_regex"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "expected_from": {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$",
+          "title": "Expected From",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "expected_from"
+      ],
+      "title": "Check",
+      "type": "object"
+    },
+    "Evaluator": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^Builtin\\.[A-Za-z]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "min_score": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Score"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Evaluator",
+      "type": "object"
+    },
+    "Gate": {
+      "additionalProperties": false,
+      "properties": {
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "min": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Min",
+          "type": "number"
+        }
+      },
+      "required": [
+        "metric",
+        "min"
+      ],
+      "title": "Gate",
+      "type": "object"
+    },
+    "Suite": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "title": "Dataset",
+          "type": "string"
+        },
+        "score": {
+          "default": false,
+          "title": "Score",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "dataset"
+      ],
+      "title": "Suite",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "dataset_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Dataset Version",
+      "type": "string"
+    },
+    "suites": {
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]{0,31}$": {
+          "$ref": "#/$defs/Suite"
+        }
+      },
+      "title": "Suites",
+      "type": "object"
+    },
+    "checks": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Check"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "evaluators": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Evaluator"
+      },
+      "title": "Evaluators",
+      "type": "array"
+    },
+    "gates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Gate"
+      },
+      "title": "Gates",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "dataset_version",
+    "suites"
+  ],
+  "title": "EvaluationConfig",
+  "type": "object"
+}
