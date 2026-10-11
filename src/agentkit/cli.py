@@ -8,8 +8,9 @@ from collections.abc import Sequence
 
 from agentkit.assemble import AssembleError
 from agentkit.deploy import DeployError, deploy_project
-from agentkit.evaluate import EvaluateError, evaluate_project
+from agentkit.evaluate import EvaluateError, cleanup_run, evaluate_project
 from agentkit.harness import HarnessError
+from agentkit.remote import evaluate_remote
 from agentkit.settings import SettingsError
 from agentkit.validate import validate_project
 
@@ -51,13 +52,32 @@ def git_commit(path: str) -> str:
 
 def cmd_evaluate(args: argparse.Namespace) -> int:
     try:
-        result, _ = evaluate_project(
-            args.path, args.env, args.suite, version=args.version, report_path=args.report, commit=git_commit(args.path)
-        )
+        if args.remote:
+            result, _ = evaluate_remote(args.path, args.env, args.suite, version=args.version, report_path=args.report)
+        else:
+            result, _ = evaluate_project(
+                args.path,
+                args.env,
+                args.suite,
+                version=args.version,
+                run_id=args.run_id,
+                report_path=args.report,
+                commit=git_commit(args.path),
+            )
     except (EvaluateError, HarnessError, SettingsError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return {"PASS": 0, "FAIL": 1, "ERROR": 2}[result]
+
+
+def cmd_cleanup_endpoint(args: argparse.Namespace) -> int:
+    try:
+        removed = cleanup_run(args.path, args.env, args.run_id)
+    except (EvaluateError, HarnessError, SettingsError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(f"removed endpoint eval_{args.run_id}" if removed else f"no endpoint eval_{args.run_id}")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,7 +103,19 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--suite", default="smoke", help="suite name from evals/evaluation.yaml (default: smoke)")
     evaluate.add_argument("--version", default="latest", help="Harness version number, or 'latest'")
     evaluate.add_argument("--report", help="report path (default: reports/<agent>-<env>-<suite>-<time>.json)")
+    evaluate.add_argument(
+        "--remote",
+        action="store_true",
+        help="run in the environment's evaluation infrastructure and wait for the report",
+    )
+    evaluate.add_argument("--run-id", help="name the temporary endpoint eval_<run id> (the evaluation infra sets this)")
     evaluate.set_defaults(func=cmd_evaluate)
+
+    cleanup = sub.add_parser("cleanup-endpoint", help="delete the temporary endpoint of an evaluation run")
+    cleanup.add_argument("path", nargs="?", default=".", help="project directory (default: current directory)")
+    cleanup.add_argument("--env", required=True, help="environment name, for example dev")
+    cleanup.add_argument("--run-id", required=True)
+    cleanup.set_defaults(func=cmd_cleanup_endpoint)
     return parser
 
 

@@ -155,6 +155,7 @@ def evaluate_project(
     suite: str,
     *,
     version: str = "latest",
+    run_id: str | None = None,
     report_path: str | Path | None = None,
     commit: str = "unknown",
     ssm_client: Any | None = None,
@@ -191,7 +192,7 @@ def evaluate_project(
         scoring.preflight(clients.xray, harness.region)
 
     started = datetime.now(UTC) - timedelta(minutes=1)
-    qualifier = hs.create_endpoint(clients.control, harness)
+    qualifier = hs.create_endpoint(clients.control, harness, run_id)
     results: list[dict[str, Any]] = []
     sessions: dict[str, Scenario] = {}
     jobs: list[dict[str, Any]] = []
@@ -285,3 +286,32 @@ def evaluate_project(
     path.write_text(json.dumps(report, indent=2, default=str) + "\n")
     out(f"report: {path}")
     return result_outcome, path
+
+
+def cleanup_run(
+    root: str | Path,
+    env: str,
+    run_id: str,
+    *,
+    ssm_client: Any | None = None,
+    clients: Clients | None = None,
+) -> bool:
+    """Delete the temporary endpoint of run `run_id` if it is still there. Used after a task that broke mid-run."""
+    definition = load_agent_definition(Path(root) / "agent.yaml")
+    settings = load_settings(env, client=ssm_client)
+    clients = clients or Clients.create(settings.region)
+    harness = hs.resolve_harness(
+        clients.control, f"{settings.resource_prefix}_{definition.name}", "latest", settings.account, settings.region
+    )
+    return hs.remove_run_endpoint(clients.control, harness, run_id)
+
+
+def summarize(report: dict[str, Any], out: Callable[[str], None] = print) -> None:
+    """Print what a finished run looks like, from its report (the remote path has only the report)."""
+    for r in report.get("scenarios", []):
+        out(f"  {scenario_status(r):5} {r['id']}" + (f"  ({r['invoke_error']})" if "invoke_error" in r else ""))
+        for e in r.get("evaluations", []):
+            out(f"  {e['status']:5} {r['id']} {e['evaluator']}: {e['reason'][:160]}")
+    for g in report.get("gates", []):
+        out(f"  gate {g['gate']}: {g['value']:.2f} (needs >= {g['threshold']}) {g['status']}")
+    out(f"OUTCOME: {report.get('outcome', ERROR)}" + (f" ({report['error']})" if "error" in report else ""))

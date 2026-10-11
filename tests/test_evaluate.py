@@ -231,3 +231,14 @@ def test_cli_exit_codes(monkeypatch):
     assert main(["evaluate", "--env", "dev"]) == 1
     monkeypatch.setattr("agentkit.cli.evaluate_project", lambda *a, **k: ("PASS", None))
     assert main(["evaluate", "--env", "dev"]) == 0
+
+
+def test_named_endpoint_and_cleanup(project):
+    control = Control()
+    clients = ev.Clients(control, AgentCore("x"), None, None, "167769274046")
+    harness = hs.resolve_harness(control, "dev_supportTriage", "latest", "1", "r")
+    assert hs.create_endpoint(control, harness, "abc123") == "eval_abc123"
+    assert hs.remove_run_endpoint(control, harness, "abc123") is True
+    assert hs.remove_run_endpoint(control, harness, "abc123") is False  # already gone
+    assert control.endpoints == {}
+    assert ev.cleanup_run(project, "dev", "nope", ssm_client=ssm(), clients=clients) is False
