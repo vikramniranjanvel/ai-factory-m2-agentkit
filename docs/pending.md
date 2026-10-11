@@ -71,7 +71,7 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 - [ ] Remote runs have no per-agent concurrency guard: two runs of one agent use two endpoints and both score, which is fine, but nothing limits the count
 - [ ] Gates are fixed thresholds on a small dataset scored by an LLM (helpfulness moved 0.60 to 1.00 across runs); consider more scenarios or a rerun-on-borderline rule
 - [ ] The evaluation image was never built locally (no Docker daemon); the first CI deploy built it. Changing `agentkitRef` in the platform repo is how the evaluating code is updated
-- [ ] `agentkit promote`: update the dedicated endpoint to the approved version
+- [x] `agentkit promote`: update the dedicated `live` endpoint to a version (also rollback); `--report` must be a PASS of exactly that version
 - [ ] Endpoint-level smoke test scripts
 - [ ] Workflow templates beyond dev deploy: PR to test with smoke and eval, main to prod candidate with approval and dedicated endpoint
 
