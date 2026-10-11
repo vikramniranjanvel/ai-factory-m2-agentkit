@@ -65,7 +65,9 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 
 ## Agentkit: evaluation and delivery (phases 6 and 7)
 
-- [ ] `agentkit evaluate` (temporary pinned endpoint, submit to the eval infra, checks, gates, MLflow recording, `eval_` cleanup)
+- [x] `agentkit evaluate` direct mode: runs in the caller's process with the caller's AWS credentials; temporary pinned `eval_` endpoint, deterministic checks, AgentCore batch scoring, gates, JSON report, stale endpoint sweep
+- [ ] `agentkit evaluate` through the eval infra: submit to the Step Functions state machine, results to the results bucket (MLflow skipped for now)
+- [ ] The deploy role cannot run `evaluate` yet (needs logs, x-ray and endpoint permissions); direct mode works with admin credentials only
 - [ ] Endpoint-level smoke test scripts
 - [ ] Workflow templates beyond dev deploy: PR to test with smoke and eval, main to prod candidate with approval and dedicated endpoint
 
