@@ -9,7 +9,8 @@ Sections are named for the repo the work belongs in: **agentkit** (everything do
 
 - [x] Step 1: descriptions, examples and class docstrings on every field (agent definition, evaluation config, dataset); a test fails if one is missing
 - [ ] Step 2: generate `docs/reference/<schema>.md` from the JSON Schema (key, type, required or default, description); run it from the pre-commit hook and the CI diff check
-- [ ] Step 3: `agentkit init` scaffolds commented `agent.yaml`, `evaluation.yaml` and a sample dataset; the templates are validated in tests; add one worked example (three scenarios, check results, gate table)
+- [x] Step 3: `agentkit init` scaffolds `agent.yaml`, `evaluation.yaml` and sample datasets; a test validates the scaffold (2026-10-11)
+- [ ] Step 3 still open: a worked example in the guide (three scenarios, check results, gate table)
 - [ ] Step 4: error messages that teach: file, key path and allowed values are done in `agentkit validate`; still to do: "did you mean" for misspelled keys and values
 - [ ] Step 5: `agentkit explain <schema or field>` prints the descriptions in the terminal
 
@@ -42,7 +43,9 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 - [ ] The project repo's GitHub environment (`dev`) has no branch rule or reviewers, so any PR deploys to dev and two open PRs overwrite each other's stack; set rules when the repo is registered and add reviewers on `test` and `prod`
 - [ ] All projects share one deploy role (broad AgentCore and CDK rights), so a project can overwrite another's stack if agent names clash; consider a role per project or a name check
 - [ ] API keys are put into SSM by hand, one per credential name, and shared by every project using that name; document who does it, or add a script
-- [ ] Looking up the repo id and setting `AWS_ACCOUNT_ID` in each repo are manual; use an org-level variable, or have `agentkit init` do both
+- [x] Looking up the repo id and setting `AWS_ACCOUNT_ID`: done by the scaffolded `scripts/setup.sh`
+- [ ] `scripts/setup.sh` is untested against real GitHub and AWS (only its syntax is checked); the registry entry is still merged by hand
+- [ ] The workflow files in the init template are copies of `platform/templates/`; no check keeps them equal
 - [ ] A registry-only change has not yet been through platform self-deploy (a stack change has)
 - [x] Registry (`registry/<project>.json`), per-target trust through GitHub environments and the project workflow template: done and proven with `support-triage` (2026-10-11)
 

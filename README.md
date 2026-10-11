@@ -15,6 +15,12 @@ Regenerate by hand with `uv run python -m agentkit.schemas.export`.
 
     uv run pytest
 
+## New agent
+
+    agentkit init myAgent
+
+Scaffolds a project; see docs/delivery.md for what it contains and for `scripts/setup.sh`.
+
 ## Documentation
 
 - [docs/delivery.md](docs/delivery.md): environments, what each GitHub event does, evaluation, promotion and rollback

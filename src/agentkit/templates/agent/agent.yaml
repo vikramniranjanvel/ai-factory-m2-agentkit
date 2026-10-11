@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/vikramniranjanvel/ai-factory-m2-agentkit/main/schemas/agent-definition.schema.json
+schema_version: 1
+name: __NAME__
+description: __DESCRIPTION__
+model:
+  provider: __PROVIDER__
+  model_id: __MODEL_ID__
+  credential: __CREDENTIAL__
+prompt: prompts/system.md
+memory:
+  mode: disabled

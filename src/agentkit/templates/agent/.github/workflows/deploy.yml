@@ -1,0 +1,75 @@
+# Copy to .github/workflows/deploy.yml in a registered project repo (with project-promote.yml next to it).
+#
+# Needs, in the project repo:
+#   variable AWS_ACCOUNT_ID         the account of the target environment
+#   GitHub environments dev, test and prod (prod: restrict deployment branches to main)
+#
+# What each event does (the target environment is derived from the event):
+#   push to a branch other than main   deploy a candidate to dev          smoke
+#   pull request                       deploy a candidate to test         smoke + full
+#   push to main                       deploy a candidate to prod         smoke + full
+# Deploying only creates a new Harness version. Callers keep getting the version behind the environment's dedicated
+# endpoint until someone runs the promote workflow (project-promote.yml) for prod, or `agentkit promote`.
+#
+# A branch with an open pull request is deployed twice, to dev by the push and to test by the pull request.
+#
+# Access comes from the platform registry (registry/<project>.json): the deploy role only trusts the registered
+# repository, in a job whose GitHub environment is a registered target.
+name: deploy
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  id-token: write
+  contents: read
+
+# One deploy per environment at a time; later runs wait (they do not cancel a deploy half way).
+concurrency:
+  group: deploy-${{ github.event_name == 'pull_request' && 'test' || github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  TARGET: ${{ github.event_name == 'pull_request' && 'test' || github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ${{ github.event_name == 'pull_request' && 'test' || github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: AgentKit and the native AgentCore CLI
+        run: |
+          uv tool install "git+https://github.com/vikramniranjanvel/ai-factory-m2-agentkit"
+          npm install -g @aws/agentcore@0.31.1
+      - name: Validate
+        run: agentkit validate
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/agentkit-${{ env.TARGET }}-deploy
+          aws-region: ${{ env.AWS_REGION }}
+      # The OIDC session already is the deploy role, so AgentKit must not assume it a second time.
+      - name: Deploy
+        run: agentkit deploy --env "$TARGET" --no-assume-role
+      # Runs in the environment's evaluation infrastructure on a temporary endpoint pinned to the version just
+      # deployed; the job fails when a gate is missed (exit 1) or the run cannot be completed (exit 2).
+      - name: Evaluate (smoke)
+        run: agentkit evaluate --env "$TARGET" --suite smoke --remote
+      - name: Evaluate (full)
+        if: env.TARGET != 'dev'
+        run: agentkit evaluate --env "$TARGET" --suite full --remote
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-reports
+          path: reports/
+          if-no-files-found: ignore

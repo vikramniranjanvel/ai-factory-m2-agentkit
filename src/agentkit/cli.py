@@ -10,6 +10,7 @@ from agentkit.assemble import AssembleError
 from agentkit.deploy import DeployError, deploy_project
 from agentkit.evaluate import EvaluateError, cleanup_run, evaluate_project
 from agentkit.harness import HarnessError
+from agentkit.init import InitError, init_project
 from agentkit.promote import PromoteError, promote_project
 from agentkit.remote import evaluate_remote
 from agentkit.settings import SettingsError
@@ -90,12 +91,43 @@ def cmd_promote(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_init(args: argparse.Namespace) -> int:
+    try:
+        target = init_project(
+            args.name,
+            args.directory,
+            description=args.description,
+            provider=args.provider,
+            model_id=args.model_id,
+            credential=args.credential,
+            repo=args.repo,
+        )
+    except InitError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"created {target}")
+    print("next:")
+    print(f"  cd {target}")
+    print("  edit agent.yaml, prompts/system.md and evals/, then: agentkit validate")
+    print("  scripts/setup.sh        # GitHub repo and environments, registry entry, model keys")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agentkit", description="AgentKit CLI for the AI Factory.")
     sub = parser.add_subparsers(dest="command", required=True)
     validate = sub.add_parser("validate", help="check agent.yaml, evals/evaluation.yaml and the datasets")
     validate.add_argument("path", nargs="?", default=".", help="project directory (default: current directory)")
     validate.set_defaults(func=cmd_validate)
+    init = sub.add_parser("init", help="create a new agent project from the template")
+    init.add_argument("name", help="agent name: letters and digits, for example supportTriage")
+    init.add_argument("directory", nargs="?", help="where to create it (default: ./<name in kebab-case>)")
+    init.add_argument("--description", help="one line about what the agent does")
+    init.add_argument("--provider", default="open_ai", choices=["bedrock", "open_ai", "gemini", "lite_llm"])
+    init.add_argument("--model-id", default="gpt-6-luna", help="model id for the provider")
+    init.add_argument("--credential", default="openai-key", help="name of the model API key in SSM (not for bedrock)")
+    init.add_argument("--repo", help="GitHub repository name (default: ai-factory-m2-<name in kebab-case>)")
+    init.set_defaults(func=cmd_init)
     deploy = sub.add_parser("deploy", help="deploy the agent to an environment")
     deploy.add_argument("path", nargs="?", default=".", help="project directory (default: current directory)")
     deploy.add_argument("--env", required=True, help="environment name, for example dev")

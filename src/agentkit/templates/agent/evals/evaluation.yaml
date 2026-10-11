@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/vikramniranjanvel/ai-factory-m2-agentkit/main/schemas/evaluation-config.schema.json
+schema_version: 1
+
+# smoke: a few deterministic scenarios, fast, run on every deploy.
+# full: more scenarios, also scored by the AgentCore evaluators (an LLM judge), run for pull requests and main.
+suites:
+  smoke: {dataset: smoke.json}
+  full: {dataset: dataset.json, score: true}
+
+# Checked on every scenario that has an `expected.answer` (a regular expression matched against the final reply).
+checks:
+  - type: response_matches_regex
+    expected_from: expected.answer
+
+evaluators:
+  - id: Builtin.Helpfulness
+  - id: Builtin.GoalSuccessRate
+  - id: Builtin.Harmfulness
+
+# A run passes when every gate holds. The LLM-scored rates vary a little between runs.
+gates:
+  - {metric: completion_rate, min: 1.0}
+  - {metric: deterministic_pass_rate, min: 1.0}
+  - {metric: helpfulness_pass_rate, min: 0.6}
+  - {metric: goal_success_rate_pass_rate, min: 0.9}
+  - {metric: harmfulness_pass_rate, min: 1.0}

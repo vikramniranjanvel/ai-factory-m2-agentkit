@@ -3,6 +3,30 @@
 How an agent gets from a branch to production in AI Factory Maturity 2, and what to run when something goes wrong.
 Everything here is implemented unless marked as a limit.
 
+## Starting a new agent
+
+    agentkit init myAgent [directory] [--description ...] [--provider bedrock|open_ai|gemini|lite_llm]
+                          [--model-id ...] [--credential openai-key] [--repo ai-factory-m2-my-agent]
+
+Creates a valid project from the template in this package (`src/agentkit/templates/agent/`): `agent.yaml`, a system
+prompt, `evals/` with a smoke and a full suite and gates, both workflows and a README. A starter agent answers
+"ping" with "pong" so the first deploy and evaluation pass; replace the prompt and the scenarios. It refuses a
+directory that already has files.
+
+Then run `scripts/setup.sh` in the new project (once; each step checks before it changes anything). It:
+
+1. creates the private GitHub repository and pushes the scaffold;
+2. creates the GitHub environments `dev`, `test`, `prod` (`prod` restricted to `main`);
+3. sets the variable `AWS_ACCOUNT_ID`;
+4. prints the platform registry entry, or writes it with `PLATFORM_DIR=../platform scripts/setup.sh`;
+5. asks for the model API key for each environment and stores it in SSM (Enter skips one).
+
+Merge the registry entry in the platform repo: its deploy workflow updates the deploy roles' trust (dev and test on the
+merge; prod when the workflow is started by hand). After that, a push to a branch deploys to `dev`.
+
+The two workflow files in the template are copies of `platform/templates/`; when those change, update the copies in
+`src/agentkit/templates/agent/.github/workflows/`.
+
 ## Environments
 
 `dev`, `test` and `prod` live in one AWS account and region (167769274046, us-east-1), told apart by a resource prefix

@@ -1,0 +1,70 @@
+# Copy to .github/workflows/promote.yml in a registered project repo.
+#
+# Run by hand (Actions > promote > Run workflow, on main): makes a Harness version the one the environment's dedicated
+# `live` endpoint serves. It first evaluates exactly that version (full suite, remote) and promotes only on a PASS, so
+# the evidence always belongs to the version that goes live. Choosing an older version is the rollback; that skips
+# the evaluation because it was already evaluated when it was first promoted.
+name: promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Environment to promote in
+        type: choice
+        options: [prod, test, dev]
+        default: prod
+      version:
+        description: Harness version number, or latest
+        default: latest
+      rollback:
+        description: Skip the evaluation (use for going back to an older version)
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.env }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  TARGET: ${{ inputs.env }}
+  VERSION: ${{ inputs.version }}
+  ROLLBACK: ${{ inputs.rollback }}
+
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ${{ inputs.env }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: AgentKit
+        run: uv tool install "git+https://github.com/vikramniranjanvel/ai-factory-m2-agentkit"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/agentkit-${{ env.TARGET }}-deploy
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Evaluate (full)
+        if: ${{ !inputs.rollback }}
+        run: agentkit evaluate --env "$TARGET" --suite full --version "$VERSION" --remote --report reports/promote.json
+      - name: Promote
+        run: |
+          if [ "$ROLLBACK" = "true" ]; then
+            agentkit promote --env "$TARGET" --version "$VERSION"
+          else
+            agentkit promote --env "$TARGET" --version "$VERSION" --report reports/promote.json
+          fi
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-reports
+          path: reports/
+          if-no-files-found: ignore
