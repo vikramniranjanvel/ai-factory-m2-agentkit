@@ -78,7 +78,8 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 - [ ] Endpoint-level smoke test scripts
 - [x] Workflow templates for the delivery events (2026-10-11): branch to dev, PR to test, main to prod candidate, manual promote workflow; see docs/delivery.md
 - [x] `test` and `prod` environments (2026-10-11): stacks, roles, settings, `support-triage` deployed, evaluated and promoted in both
-- [ ] Rollback is untested against real AWS: every environment has had only one Harness version
+- [x] Promote and rollback proven in prod from CI (2026-10-11): version 2 evaluated (full) and promoted, then rolled back to version 1 with the evaluation skipped; `live` served 2 then 1
+- [ ] A deploy of unchanged content creates no new Harness version, so there is nothing to promote; a re-run of main after a no-op change just re-evaluates version N
 - [ ] All pull requests share one `test` stack
 - [ ] No required reviewer on `prod` (GitHub plan); the manual promote workflow is the gate
 
