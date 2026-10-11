@@ -10,6 +10,7 @@ from agentkit.assemble import AssembleError
 from agentkit.deploy import DeployError, deploy_project
 from agentkit.evaluate import EvaluateError, cleanup_run, evaluate_project
 from agentkit.harness import HarnessError
+from agentkit.promote import PromoteError, promote_project
 from agentkit.remote import evaluate_remote
 from agentkit.settings import SettingsError
 from agentkit.validate import validate_project
@@ -80,6 +81,15 @@ def cmd_cleanup_endpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_promote(args: argparse.Namespace) -> int:
+    try:
+        promote_project(args.path, args.env, version=args.version, report=args.report)
+    except (PromoteError, HarnessError, SettingsError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agentkit", description="AgentKit CLI for the AI Factory.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -116,6 +126,17 @@ def build_parser() -> argparse.ArgumentParser:
     cleanup.add_argument("--env", required=True, help="environment name, for example dev")
     cleanup.add_argument("--run-id", required=True)
     cleanup.set_defaults(func=cmd_cleanup_endpoint)
+
+    promote = sub.add_parser(
+        "promote", help="make a Harness version the one the environment's dedicated endpoint serves (also rollback)"
+    )
+    promote.add_argument("path", nargs="?", default=".", help="project directory (default: current directory)")
+    promote.add_argument("--env", required=True, help="environment name, for example prod")
+    promote.add_argument(
+        "--version", default="latest", help="Harness version number, or 'latest'; an older one rolls back"
+    )
+    promote.add_argument("--report", help="evaluation report that must be a PASS of exactly this version")
+    promote.set_defaults(func=cmd_promote)
     return parser
 
 
