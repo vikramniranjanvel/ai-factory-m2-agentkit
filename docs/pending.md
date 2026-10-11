@@ -1,6 +1,9 @@
 # Pending work
 
-Tick items off as they land. Details of the documentation plan are in `schema-documentation.md`.
+This is the one list for all repos. Tick items off as they land. Details of the documentation plan are in `schema-documentation.md`.
+
+Sections are named for the repo the work belongs in: **agentkit** (everything down to "Deploy follow-ups"), **platform**
+(`ai-factory-m2-platform`), **project repos** (`support-triage`, `knowledge-assistant`), and **cross-repo** items.
 
 ## Schema documentation
 
@@ -30,3 +33,47 @@ Tick items off as they land. Details of the documentation plan are in `schema-do
 - [x] First real deploy to dev done 2026-10-10 (`agentkit deploy --env dev --no-assume-role`): harness `dev_supportTriage` READY
 - [x] Invoked the deployed harness once (2026-10-10): the model answered, so the API key and model work end to end
 - [x] Deploy through the role (`agentkit-dev-deploy`, created by the platform repo) verified 2026-10-11: `agentkit deploy --env dev` with no `--no-assume-role` updated `AgentCore-supportTriage-dev` with the role's permissions as they are
+
+## Platform: onboarding a project repo (found 2026-10-11)
+
+The flow works: PR a file into the platform's `registry/`, merge, then the repo deploys with `templates/project-deploy.yml`. Gaps:
+
+- [ ] Registry PRs have no checks beyond `cdk synth`: verify the repo exists, the id matches the name, targets are known environments, and project names are unique
+- [ ] The project repo's GitHub environment (`dev`) has no branch rule or reviewers, so any PR deploys to dev and two open PRs overwrite each other's stack; set rules when the repo is registered and add reviewers on `test` and `prod`
+- [ ] All projects share one deploy role (broad AgentCore and CDK rights), so a project can overwrite another's stack if agent names clash; consider a role per project or a name check
+- [ ] API keys are put into SSM by hand, one per credential name, and shared by every project using that name; document who does it, or add a script
+- [ ] Looking up the repo id and setting `AWS_ACCOUNT_ID` in each repo are manual; use an org-level variable, or have `agentkit init` do both
+- [ ] A registry-only change has not yet been through platform self-deploy (a stack change has)
+- [x] Registry (`registry/<project>.json`), per-target trust through GitHub environments and the project workflow template: done and proven with `support-triage` (2026-10-11)
+
+## Platform: CI/CD and environments
+
+- [x] Platform CI applies the stack on merge to `main` through its own OIDC role: done 2026-10-11
+- [ ] Required reviewers on the platform repo's GitHub environments for `test` and `prod`
+- [ ] The platform deploy role can reach anything the CDK bootstrap roles can (inherent to CDK self-deploy); revisit when accounts are split
+- [ ] A new environment's first deploy is run by hand, because its platform role does not exist yet
+- [ ] Temporary platform test stack (separate storage, no deletion of retained records)
+- [ ] `test` and `prod` environments (config file, registry targets, GitHub environments)
+- [ ] Separate dev, test and prod accounts (today one account, separated by resource prefix)
+
+## Platform: infra not built yet
+
+- [ ] `infra/evaluation/` (Step Functions + ECS Fargate, results bucket, `eval/*` settings)
+- [ ] `infra/mlflow/` (tracking server, retention protection, `mlflow/tracking-uri`)
+- [ ] `agentkit-platform init` scaffolding
+- [ ] MCP gateway (out of scope this iteration)
+
+## Agentkit: evaluation and delivery (phases 6 and 7)
+
+- [ ] `agentkit evaluate` (temporary pinned endpoint, submit to the eval infra, checks, gates, MLflow recording, `eval_` cleanup)
+- [ ] Endpoint-level smoke test scripts
+- [ ] Workflow templates beyond dev deploy: PR to test with smoke and eval, main to prod candidate with approval and dedicated endpoint
+
+## Project repos
+
+- [ ] Port `knowledge-assistant` into its repo (registered, still empty)
+- [ ] `support-triage` has the sample agent from the agentkit fixtures; replace with the ported M1 agent and its real datasets
+
+## Cross-repo / hardening (phase 9)
+
+- [ ] Retention protection, cleanup of orphaned `eval_` endpoints, rollback drill, docs
