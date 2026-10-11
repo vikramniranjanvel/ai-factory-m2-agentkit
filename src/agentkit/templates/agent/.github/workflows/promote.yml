@@ -47,9 +47,12 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: AgentKit
         run: uv tool install "git+https://github.com/vikramniranjanvel/ai-factory-m2-agentkit"
+      # The project name is agent.yaml's `project`, which is also the platform registry entry's name.
+      - name: Project name
+        run: echo "PROJECT=$(yq -r .project agent.yaml)" >> "$GITHUB_ENV"
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/agentkit-${{ env.TARGET }}-deploy
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/agentkit-${{ env.TARGET }}-${{ env.PROJECT }}-deploy
           aws-region: ${{ env.AWS_REGION }}
       - name: Evaluate (full)
         if: ${{ !inputs.rollback }}

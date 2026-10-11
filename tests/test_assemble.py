@@ -20,7 +20,6 @@ SETTINGS = Settings(
     account="167769274046",
     region="us-east-1",
     resource_prefix="dev",
-    deploy_role_arn="arn:aws:iam::167769274046:role/agentkit-deploy-dev",
 )
 
 CDK_TS = f"""import x from 'y';

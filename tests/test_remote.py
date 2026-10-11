@@ -77,7 +77,10 @@ def test_remote_run_returns_the_report_outcome(project, tmp_path):
     assert outcome == "FAIL" and json.loads(path.read_text())["outcome"] == "FAIL"
     assert sfn.started["suite"] == "smoke" and sfn.started["targetEnv"] == "dev"
     keys = [k for _, k in s3.objects]
-    assert keys == [sfn.started["inputKey"]] and sfn.started["reportKey"].startswith("results/")
+    assert keys == [sfn.started["inputKey"]]
+    # keyed by project, so the project's deploy role can be limited to its own prefix
+    assert sfn.started["inputKey"].startswith("inputs/support-triage/")
+    assert sfn.started["reportKey"].startswith("results/support-triage/dev/")
 
 
 def test_a_failed_execution_is_an_error(project, tmp_path):

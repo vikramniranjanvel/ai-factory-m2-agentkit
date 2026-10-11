@@ -175,7 +175,7 @@ def evaluate_project(
     scored = config.suites[suite].score
 
     definition = load_agent_definition(root / "agent.yaml")
-    settings = load_settings(env, client=ssm_client)
+    settings = load_settings(env, definition.project, client=ssm_client)
     clients = clients or Clients.create(settings.region)
     if clients.account != settings.account:
         raise EvaluateError(f"credentials are for account {clients.account}, but {env} is {settings.account}")
@@ -298,7 +298,7 @@ def cleanup_run(
 ) -> bool:
     """Delete the temporary endpoint of run `run_id` if it is still there. Used after a task that broke mid-run."""
     definition = load_agent_definition(Path(root) / "agent.yaml")
-    settings = load_settings(env, client=ssm_client)
+    settings = load_settings(env, definition.project, client=ssm_client)
     clients = clients or Clients.create(settings.region)
     harness = hs.resolve_harness(
         clients.control, f"{settings.resource_prefix}_{definition.name}", "latest", settings.account, settings.region

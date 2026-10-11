@@ -24,7 +24,7 @@ def test_v1_equivalent_loads():
 
 def test_defaults():
     d = AgentDefinition.model_validate(
-        {"schema_version": 1, "name": "a", "model": {"provider": "bedrock", "model_id": "m"}}
+        {"schema_version": 1, "project": "p", "name": "a", "model": {"provider": "bedrock", "model_id": "m"}}
     )
     assert d.prompt == "prompts/system.md" and d.skills == [] and d.memory.mode == "disabled" and d.tags == {}
 
@@ -35,6 +35,11 @@ def test_defaults():
         base(unknown_field=1),  # strict: typos fail
         base(schema_version=2),
         base(name="has_underscore"),
+        base(project="Support"),  # lowercase letters, digits and hyphens only
+        base(project="support_triage"),
+        base(project="../prod"),
+        base(project="1abc"),
+        base(project="x" * 41),
         base(name="x" * 33),
         base(name="1abc"),
         base(prompt="../outside.md"),
@@ -72,3 +77,15 @@ def test_missing_referenced_file(tmp_path):
 def test_json_schema_file_is_current():
     """schemas/agent-definition.schema.json is generated: regenerate with `uv run python -m agentkit.schemas.export`."""
     assert json.loads(SCHEMA_FILE.read_text()) == AgentDefinition.model_json_schema()
+
+
+def test_project_is_required():
+    data = base()
+    del data["project"]
+    with pytest.raises(ValidationError, match="project"):
+        AgentDefinition.model_validate(data)
+
+
+def test_project_is_in_the_published_schema():
+    schema = json.loads(SCHEMA_FILE.read_text())
+    assert "project" in schema["required"] and "registry" in schema["properties"]["project"]["description"]

@@ -385,6 +385,15 @@
       "title": "Schema Version",
       "type": "integer"
     },
+    "project": {
+      "description": "Name of this project in the platform registry (`registry/<project>.json`): lowercase letters, digits and hyphens, up to 40 characters. AgentKit deploys with the role `agentkit-<env>-<project>-deploy` and reads `/agentkit/<env>/projects/<project>/`, which exist only for the environments the project is registered for.",
+      "examples": [
+        "support-triage"
+      ],
+      "pattern": "^[a-z][a-z0-9-]{0,39}$",
+      "title": "Project",
+      "type": "string"
+    },
     "name": {
       "description": "Agent name: a letter, then letters and digits, up to 32 characters (no underscores or hyphens). The deployed harness is named `<environment prefix>_<name>`.",
       "examples": [
@@ -504,6 +513,7 @@
   },
   "required": [
     "schema_version",
+    "project",
     "name",
     "model"
   ],

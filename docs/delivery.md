@@ -19,10 +19,12 @@ Then run `scripts/setup.sh` in the new project (once; each step checks before it
 2. creates the GitHub environments `dev`, `test`, `prod` (`prod` restricted to `main`);
 3. sets the variable `AWS_ACCOUNT_ID`;
 4. prints the platform registry entry, or writes it with `PLATFORM_DIR=../platform scripts/setup.sh`;
-5. asks for the model API key for each environment and stores it in SSM (Enter skips one).
+5. asks for the model API key for each environment and stores it in SSM under the project's own path (Enter skips one).
 
-Merge the registry entry in the platform repo: its deploy workflow updates the deploy roles' trust (dev and test on the
-merge; prod when the workflow is started by hand). After that, a push to a branch deploys to `dev`.
+Merge the registry entry in the platform repo: its deploy workflow creates the project's deploy role and settings record
+for each target environment (dev and test on the merge; prod when the workflow is started by hand). The project name in
+the registry is the `project` field in `agent.yaml`. A project registered only for `dev` has nothing in `test` or `prod`.
+After that, a push to a branch deploys to `dev`.
 
 The two workflow files in the template are copies of `platform/templates/`; when those change, update the copies in
 `src/agentkit/templates/agent/.github/workflows/`.
@@ -34,9 +36,9 @@ The two workflow files in the template are copies of `platform/templates/`; when
 
 | Part | Where | Name |
 |---|---|---|
-| Settings | SSM | `/agentkit/<env>/...` (account, region, resource-prefix, deploy-role-arn, eval/state-machine-arn, eval/results-bucket) |
-| Model API key | SSM SecureString | `/agentkit/<env>/credentials/openai-key` (put by hand, never in git) |
-| Deploy role | IAM | `agentkit-<env>-deploy` (projects), `agentkit-<env>-platform-deploy` (platform CI) |
+| Project settings | SSM | `/agentkit/<env>/projects/<project>/...` (account, region, resource-prefix, repository, eval/state-machine-arn, eval/results-bucket); only for projects registered for `<env>` |
+| Model API key | SSM SecureString | `/agentkit/<env>/projects/<project>/credentials/openai-key` (put by hand, never in git) |
+| Deploy role | IAM | `agentkit-<env>-<project>-deploy` (one per registered project), `agentkit-<env>-platform-deploy` (platform CI) |
 | Evaluation infra | CloudFormation | `AgentkitEvaluation-<env>`: Step Functions `<env>-agentkit-eval`, Fargate task, results bucket |
 | Agent | CloudFormation | `AgentCore-<agent>-<env>`: Harness `<env>_<agent>` |
 
@@ -118,12 +120,18 @@ Run the promote workflow with the previous version number (see `previous_version
 
 ## Secrets and access
 
-- The model API key lives only in SSM (`/agentkit/<env>/credentials/<name>`) and is written to a temporary
-  `.env.local` during deploy.
-- CI has no stored AWS keys: GitHub OIDC assumes `agentkit-<env>-deploy`, and only for a registered repository in a
-  job whose GitHub environment is that target (immutable subjects, repo ids in `registry/`).
-- The deploy role can run `bedrock-agentcore:*`, start and read evaluations, and read the environment's settings.
-  It cannot read other environments' parameters.
+- The model API key lives only in SSM (`/agentkit/<env>/projects/<project>/credentials/<name>`) and is written to a
+  temporary `.env.local` during deploy.
+- CI has no stored AWS keys: GitHub OIDC assumes `agentkit-<env>-<project>-deploy`, and only for that project's
+  registered repository in a job whose GitHub environment is that target (immutable subjects, repo ids in `registry/`).
+- `agentkit deploy` finds no settings first: it computes the role name from `project` in `agent.yaml`, assumes it, and
+  reads the project's record as that role. The role's trust policy is the access check. A project that is not registered
+  for the environment has no role there, and a laptop identity can assume the roles only in `dev` (the platform's
+  `trustedPrincipalArns`); `test` and `prod` are CI only.
+- A project role can run `bedrock-agentcore:*`, start evaluations, upload to `inputs/<project>/` and read
+  `results/<project>/`, and read its own record. It cannot read another project's settings or API keys, or another
+  environment's. The shared CDK bootstrap roles it hands the deploy to are not scoped per project (see the platform's
+  known limits).
 
 ## Cost
 

@@ -53,9 +53,11 @@ def evaluate_remote(
     _, issues = validate_project(root)
     if issues:
         raise EvaluateError("the project is not valid:\n" + "\n".join(str(i) for i in issues))
-    settings = load_settings(env, client=ssm_client)
+    definition = load_agent_definition(root / "agent.yaml")
+    settings = load_settings(env, definition.project, client=ssm_client)
     settings.require("eval_state_machine_arn", "eval_results_bucket")
-    name = load_agent_definition(root / "agent.yaml").name
+    name = definition.name
+    project = definition.project
     if s3 is None or sfn is None:
         import boto3
 
@@ -64,8 +66,8 @@ def evaluate_remote(
 
     run_id = uuid.uuid4().hex[:8]
     bucket = settings.eval_results_bucket
-    input_key = f"inputs/{run_id}/project.tgz"
-    report_key = f"results/{name}/{env}/{run_id}/report.json"
+    input_key = f"inputs/{project}/{run_id}/project.tgz"
+    report_key = f"results/{project}/{env}/{run_id}/report.json"
     s3.put_object(Bucket=bucket, Key=input_key, Body=bundle(root))
     execution = sfn.start_execution(
         stateMachineArn=settings.eval_state_machine_arn,
