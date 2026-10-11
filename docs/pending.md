@@ -2,8 +2,9 @@
 
 This is the one list for all repos. Tick items off as they land. Details of the documentation plan are in `schema-documentation.md`.
 
-Sections are named for the repo the work belongs in: **agentkit** (everything down to "Deploy follow-ups"), **platform**
-(`ai-factory-m2-platform`), **project repos** (`support-triage`, `knowledge-assistant`), and **cross-repo** items.
+Sections are named for the repo the work belongs in: **agentkit** (schema documentation down to "Deploy follow-ups", and
+"Agentkit: evaluation and delivery"), **platform** (`ai-factory-m2-platform`, the "Platform" sections), **project repos**
+(`support-triage`, `knowledge-assistant`), and **cross-repo** items. How delivery works is in `delivery.md`.
 
 ## Schema documentation
 
@@ -40,9 +41,9 @@ Sections are named for the repo the work belongs in: **agentkit** (everything do
 The flow works: PR a file into the platform's `registry/`, merge, then the repo deploys with `templates/project-deploy.yml`. Gaps:
 
 - [ ] Registry PRs have no checks beyond `cdk synth`: verify the repo exists, the id matches the name, targets are known environments, and project names are unique
-- [ ] The project repo's GitHub environment (`dev`) has no branch rule or reviewers, so any PR deploys to dev and two open PRs overwrite each other's stack; set rules when the repo is registered and add reviewers on `test` and `prod`
+- [ ] The project repo's GitHub environments `dev` and `test` have no branch rule or reviewers (`prod` is restricted to `main` by `scripts/setup.sh`, and was done by hand for `support-triage`); two open PRs overwrite each other's `test` stack. Required reviewers need a paid GitHub plan
 - [ ] All projects share one deploy role (broad AgentCore and CDK rights), so a project can overwrite another's stack if agent names clash; consider a role per project or a name check
-- [ ] API keys are put into SSM by hand, one per credential name, and shared by every project using that name; document who does it, or add a script
+- [ ] API keys are one per credential name and shared by every project using that name; `scripts/setup.sh` prompts for them, but who owns each key is not decided. `prod`'s `openai-key` is a copy of `test`'s, and the dev/test key was pasted into a chat: rotate it and give `prod` its own
 - [x] Looking up the repo id and setting `AWS_ACCOUNT_ID`: done by the scaffolded `scripts/setup.sh`
 - [ ] `scripts/setup.sh` is untested against real GitHub and AWS (only its syntax is checked); the registry entry is still merged by hand
 - [ ] The workflow files in the init template are copies of `platform/templates/`; no check keeps them equal
@@ -52,16 +53,16 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 ## Platform: CI/CD and environments
 
 - [x] Platform CI applies the stack on merge to `main` through its own OIDC role: done 2026-10-11
-- [ ] Required reviewers on the platform repo's GitHub environments for `test` and `prod`
+- [ ] Required reviewers on the GitHub environments of the platform and project repos: blocked by the GitHub plan (private repos); `prod` is restricted to `main` and the manual promote workflow is the gate
 - [ ] The platform deploy role can reach anything the CDK bootstrap roles can (inherent to CDK self-deploy); revisit when accounts are split
-- [ ] A new environment's first deploy is run by hand, because its platform role does not exist yet
+- [ ] A new environment's first deploy is run by hand, because its platform role does not exist yet (done for `test` and `prod` 2026-10-11; steps are in the platform README)
 - [ ] Temporary platform test stack (separate storage, no deletion of retained records)
-- [ ] `test` and `prod` environments (config file, registry targets, GitHub environments)
+- [x] `test` and `prod` environments (2026-10-11): config files, registry targets, GitHub environments, governance and evaluation stacks
 - [ ] Separate dev, test and prod accounts (today one account, separated by resource prefix)
 
 ## Platform: infra not built yet
 
-- [x] `infra/evaluation/` (Step Functions + ECS Fargate, results bucket, `eval/*` settings) deployed to dev 2026-10-11; test and prod copies come with those environments
+- [x] `infra/evaluation/` (Step Functions + ECS Fargate, results bucket, `eval/*` settings) deployed to dev, test and prod (2026-10-11)
 - [ ] `infra/mlflow/` (tracking server, retention protection, `mlflow/tracking-uri`)
 - [ ] `agentkit-platform init` scaffolding
 - [ ] MCP gateway (out of scope this iteration)
@@ -69,7 +70,7 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 ## Agentkit: evaluation and delivery (phases 6 and 7)
 
 - [x] `agentkit evaluate` direct mode: runs in the caller's process with the caller's AWS credentials; temporary pinned `eval_` endpoint, deterministic checks, AgentCore batch scoring, gates, JSON report, stale endpoint sweep
-- [x] `agentkit evaluate --remote` through the eval infra (2026-10-11): uploads the project, runs the state machine, reads the report; smoke and full proven on `supportTriage` in dev
+- [x] `agentkit evaluate --remote` through the eval infra (2026-10-11): uploads the project, runs the state machine, reads the report; smoke and full proven on `supportTriage` in dev, test and prod
 - [x] Remote evaluation in the CI workflow template and `support-triage` (2026-10-11): smoke on every run, full on main; both passed in CI
 - [ ] Remote runs have no per-agent concurrency guard: two runs of one agent use two endpoints and both score, which is fine, but nothing limits the count
 - [ ] Gates are fixed thresholds on a small dataset scored by an LLM (helpfulness moved 0.60 to 1.00 across runs); consider more scenarios or a rerun-on-borderline rule
@@ -78,9 +79,9 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 - [ ] Endpoint-level smoke test scripts
 - [x] Workflow templates for the delivery events (2026-10-11): branch to dev, PR to test, main to prod candidate, manual promote workflow; see docs/delivery.md
 - [x] `test` and `prod` environments (2026-10-11): stacks, roles, settings, `support-triage` deployed, evaluated and promoted in both
-- [ ] Rollback is untested against real AWS: every environment has had only one Harness version
+- [x] Promote and rollback proven in prod from CI (2026-10-11): version 2 evaluated (full) and promoted, then rolled back to version 1 with the evaluation skipped; `live` served 2 then 1
+- [ ] A deploy of unchanged content creates no new Harness version, so there is nothing to promote; a re-run of main after a no-op change just re-evaluates version N
 - [ ] All pull requests share one `test` stack
-- [ ] No required reviewer on `prod` (GitHub plan); the manual promote workflow is the gate
 
 ## Project repos
 
@@ -89,4 +90,6 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 
 ## Cross-repo / hardening (phase 9)
 
-- [ ] Retention protection, cleanup of orphaned `eval_` endpoints, rollback drill, docs
+- [ ] Retention protection and cleanup of orphaned `eval_` endpoints (rollback drill and docs: done, see `delivery.md`)
+- [ ] No AWS budget alert is set (suggested: $25 a month). The account's cost data also shows RDS, ELB and WAF spend that looks like v1; confirm before reading the account total as v2's cost
+- [ ] `dev` has no dedicated `live` endpoint (never promoted); only `test` and `prod` do
