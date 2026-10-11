@@ -29,4 +29,4 @@ Tick items off as they land. Details of the documentation plan are in `schema-do
 - [x] Write `.env.local` from the SSM SecureString (`/agentkit/<env>/credentials/<name>`) just before `agentcore deploy`
 - [x] First real deploy to dev done 2026-10-10 (`agentkit deploy --env dev --no-assume-role`): harness `dev_supportTriage` READY
 - [x] Invoked the deployed harness once (2026-10-10): the model answered, so the API key and model work end to end
-- [ ] The deploy role (`agentkit-dev-deploy`) does not exist yet; until the platform slice creates it, deploy with `--no-assume-role`
+- [x] Deploy through the role (`agentkit-dev-deploy`, created by the platform repo) verified 2026-10-11: `agentkit deploy --env dev` with no `--no-assume-role` updated `AgentCore-supportTriage-dev` with the role's permissions as they are
