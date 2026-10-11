@@ -58,7 +58,7 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 
 ## Platform: infra not built yet
 
-- [ ] `infra/evaluation/` (Step Functions + ECS Fargate, results bucket, `eval/*` settings)
+- [x] `infra/evaluation/` (Step Functions + ECS Fargate, results bucket, `eval/*` settings) deployed to dev 2026-10-11; test and prod copies come with those environments
 - [ ] `infra/mlflow/` (tracking server, retention protection, `mlflow/tracking-uri`)
 - [ ] `agentkit-platform init` scaffolding
 - [ ] MCP gateway (out of scope this iteration)
@@ -66,8 +66,12 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 ## Agentkit: evaluation and delivery (phases 6 and 7)
 
 - [x] `agentkit evaluate` direct mode: runs in the caller's process with the caller's AWS credentials; temporary pinned `eval_` endpoint, deterministic checks, AgentCore batch scoring, gates, JSON report, stale endpoint sweep
-- [ ] `agentkit evaluate` through the eval infra: submit to the Step Functions state machine, results to the results bucket (MLflow skipped for now)
-- [ ] The deploy role cannot run `evaluate` yet (needs logs, x-ray and endpoint permissions); direct mode works with admin credentials only
+- [x] `agentkit evaluate --remote` through the eval infra (2026-10-11): uploads the project, runs the state machine, reads the report; smoke and full proven on `supportTriage` in dev
+- [ ] Remote evaluation in the CI workflow templates (the CLI works; no template calls it yet)
+- [ ] Remote runs have no per-agent concurrency guard: two runs of one agent use two endpoints and both score, which is fine, but nothing limits the count
+- [ ] Gates are fixed thresholds on a small dataset scored by an LLM (helpfulness moved 0.60 to 1.00 across runs); consider more scenarios or a rerun-on-borderline rule
+- [ ] The evaluation image was never built locally (no Docker daemon); the first CI deploy built it. Changing `agentkitRef` in the platform repo is how the evaluating code is updated
+- [ ] `agentkit promote`: update the dedicated endpoint to the approved version
 - [ ] Endpoint-level smoke test scripts
 - [ ] Workflow templates beyond dev deploy: PR to test with smoke and eval, main to prod candidate with approval and dedicated endpoint
 
