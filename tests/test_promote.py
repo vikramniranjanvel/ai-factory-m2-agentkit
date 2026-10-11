@@ -91,6 +91,14 @@ def test_already_live_changes_nothing(project):
     assert control.calls == []
 
 
+def test_repeating_a_promotion_keeps_the_manifest_of_the_release(project):
+    control = Control(live=2)
+    first = promote(project, control)
+    again = promote(project, control)
+    assert control.calls == [("update", "3")]  # the second run moved nothing
+    assert again == first and again["previous_version"] == "2"
+
+
 def test_report_must_be_a_pass_of_this_version(project, tmp_path):
     control = Control()
     manifest = promote(project, control, report=report(tmp_path))
