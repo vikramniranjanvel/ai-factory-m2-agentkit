@@ -93,6 +93,15 @@ def delete_endpoint(control: Any, harness: Harness, name: str) -> None:
         print(f"warning: could not delete endpoint {name}: {exc}", file=sys.stderr)
 
 
+def remove_run_endpoint(control: Any, harness: Harness, run_id: str) -> bool:
+    """Delete the endpoint of one run if it still exists. Returns whether there was one."""
+    name = endpoint_name(run_id)
+    if _status(control, harness, name) is None:
+        return False
+    delete_endpoint(control, harness, name)
+    return True
+
+
 def sweep_stale(control: Any, harness: Harness, max_age_minutes: int = 60) -> None:
     """Delete `eval_` endpoints left by killed or cancelled runs (no run lasts this long)."""
     cutoff = datetime.now(UTC) - timedelta(minutes=max_age_minutes)
@@ -102,10 +111,15 @@ def sweep_stale(control: Any, harness: Harness, max_age_minutes: int = 60) -> No
             delete_endpoint(control, harness, e["endpointName"])
 
 
-def create_endpoint(control: Any, harness: Harness) -> str:
+def endpoint_name(run_id: str | None = None) -> str:
+    """`eval_<run id>`: a caller that must find the endpoint later (cleanup) passes its own run id."""
+    return f"{ENDPOINT_PREFIX}{run_id or uuid.uuid4().hex[:8]}"
+
+
+def create_endpoint(control: Any, harness: Harness, run_id: str | None = None) -> str:
     """Create an endpoint pinned to the version under test and wait until it is READY. Returns its name."""
     sweep_stale(control, harness)
-    name = f"{ENDPOINT_PREFIX}{uuid.uuid4().hex[:8]}"
+    name = endpoint_name(run_id)
     try:
         control.create_harness_endpoint(harnessId=harness.id, endpointName=name, targetVersion=harness.version)
     except Exception as exc:
