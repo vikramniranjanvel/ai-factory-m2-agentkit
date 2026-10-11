@@ -23,6 +23,7 @@ Scaffolds a project; see docs/delivery.md for what it contains and for `scripts/
 
 ## Documentation
 
+- [docs/developer-guide.md](docs/developer-guide.md): for people building and deploying agents
 - [docs/delivery.md](docs/delivery.md): environments, what each GitHub event does, evaluation, promotion and rollback
 - [docs/pending.md](docs/pending.md): what is done and what is open, across all repos
 - [docs/schema-documentation.md](docs/schema-documentation.md): `agent.yaml`, evaluation config and datasets
