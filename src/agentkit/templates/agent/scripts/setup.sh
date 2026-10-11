@@ -55,7 +55,7 @@ ENTRY="$(printf '{\n  "project": "%s",\n  "repository": { "name": "%s", "id": "%
 if [ -n "$PLATFORM_DIR" ]; then
   printf '%s' "$ENTRY" >"$PLATFORM_DIR/registry/$PROJECT.json"
   echo "wrote $PLATFORM_DIR/registry/$PROJECT.json: commit it in the platform repo and merge; its deploy workflow"
-  echo "then lets this repository assume the deploy roles."
+  echo "then creates this project's deploy roles and settings records, which only this repository can assume."
 else
   echo "Add this as registry/$PROJECT.json in the platform repo, then merge it:"
   printf '%s' "$ENTRY"
@@ -64,7 +64,7 @@ fi
 step "5. Model API key ($CREDENTIAL), one per environment (Enter skips)"
 for env in $ENVIRONMENTS; do
   [ -n "$CREDENTIAL" ] || { echo "the model needs no API key"; break; }
-  name="/agentkit/$env/credentials/$CREDENTIAL"
+  name="/agentkit/$env/projects/$PROJECT/credentials/$CREDENTIAL"
   if aws ssm get-parameter --name "$name" >/dev/null 2>&1; then
     echo "$name exists"
     continue

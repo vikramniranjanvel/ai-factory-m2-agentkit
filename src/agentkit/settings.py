@@ -1,13 +1,16 @@
-"""Environment settings published by the platform repo to SSM Parameter Store.
+"""Project settings published by the platform repo to SSM Parameter Store.
 
-Layout (decision 3 of the implementation plan): `<prefix>/<env>/<setting>` and
-`<prefix>/<env>/projects/<project>/<setting>`. The prefix comes from the `AGENTKIT_SSM_PREFIX` environment variable
-(default `/agentkit`), so moving an environment to another account is a matter of pointing the prefix at that account.
+Layout: `<prefix>/<env>/projects/<project>/<setting>`. There are no environment-wide settings: the platform writes one
+complete record per project and environment, only for the environments the project is registered for, and the
+project's deploy role can read that path and nothing else. The prefix comes from the `AGENTKIT_SSM_PREFIX` environment
+variable (default `/agentkit`), so moving an environment to another account is a matter of pointing the prefix at that
+account.
 """
 
 from __future__ import annotations
 
 import os
+import re
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
@@ -16,6 +19,9 @@ PREFIX_ENV_VAR = "AGENTKIT_SSM_PREFIX"
 DEFAULT_PREFIX = "/agentkit"
 Environment = Literal["dev", "test", "prod"]
 ENVIRONMENTS: tuple[str, ...] = ("dev", "test", "prod")
+# The project name is part of a role name and an SSM path, so it is restricted to a safe, short form. The platform
+# registry applies the same rule.
+PROJECT_PATTERN = r"^[a-z][a-z0-9-]{0,39}$"
 
 
 class SettingsError(RuntimeError):
@@ -23,7 +29,7 @@ class SettingsError(RuntimeError):
 
 
 class Settings(BaseModel):
-    """What AgentKit knows about one environment. Field `deploy_role_arn` is SSM key `deploy-role-arn`, and so on."""
+    """What AgentKit knows about one project in one environment (`resource_prefix` is SSM key `resource-prefix`)."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -31,9 +37,6 @@ class Settings(BaseModel):
     region: Annotated[str, StringConstraints(pattern=r"^[a-z]{2}(-[a-z]+)+-\d$")] = Field(description="AWS region.")
     resource_prefix: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9]{0,7}$")] = Field(
         description="Prefix of every deployed resource: harnesses are named `<resource_prefix>_<agent name>`."
-    )
-    deploy_role_arn: Annotated[str, StringConstraints(pattern=r"^arn:aws:iam::\d{12}:role/.+$")] = Field(
-        description="IAM role AgentKit assumes to deploy."
     )
     eval_state_machine_arn: Annotated[str, StringConstraints(pattern=r"^arn:aws:states:.+")] | None = Field(
         default=None, description="Step Functions state machine that runs evaluations. Needed by `evaluate`."
@@ -61,6 +64,23 @@ def ssm_key(field: str) -> str:
 KEY_TO_FIELD = {ssm_key(f): f for f in Settings.model_fields}
 
 
+def deploy_role_arn(account: str, env: str, project: str) -> str:
+    """The role AgentKit assumes to deploy `project` to `env`. The platform creates it under this name, only for
+    environments the project is registered for, so it needs no lookup: assuming it is the access check."""
+    return f"arn:aws:iam::{account}:role/agentkit-{env}-{project}-deploy"
+
+
+def project_path(env: str, project: str, prefix: str | None = None) -> str:
+    """SSM path of a project's record in an environment."""
+    if env not in ENVIRONMENTS:
+        raise SettingsError(f"unknown environment {env!r} (expected one of: {', '.join(ENVIRONMENTS)})")
+    if not re.match(PROJECT_PATTERN, project):
+        raise SettingsError(
+            f"invalid project name {project!r}: lowercase letters, digits and hyphens, starting with a letter"
+        )
+    return f"{prefix.rstrip('/') if prefix else ssm_prefix()}/{env}/projects/{project}"
+
+
 def ssm_prefix() -> str:
     prefix = os.environ.get(PREFIX_ENV_VAR, DEFAULT_PREFIX).rstrip("/")
     if not prefix.startswith("/"):
@@ -85,25 +105,18 @@ def _client(client: Any | None) -> Any:
     return boto3.client("ssm")
 
 
-def load_settings(env: str, client: Any | None = None, prefix: str | None = None) -> Settings:
-    """Read the environment's settings from SSM. Unknown keys are ignored; invalid or missing ones raise."""
-    if env not in ENVIRONMENTS:
-        raise SettingsError(f"unknown environment {env!r} (expected one of: {', '.join(ENVIRONMENTS)})")
-    path = f"{prefix.rstrip('/') if prefix else ssm_prefix()}/{env}"
+def load_settings(env: str, project: str, client: Any | None = None, prefix: str | None = None) -> Settings:
+    """Read `project`'s settings in `env` from SSM. Unknown keys are ignored; invalid or missing ones raise."""
+    path = project_path(env, project, prefix)
     found = _parameters(_client(client), path)
+    if not found:
+        raise SettingsError(
+            f"no settings for project '{project}' in {env} under {path}. Is '{project}' registered for {env} in the "
+            f"platform registry (its targets must include '{env}')?"
+        )
     values = {KEY_TO_FIELD[k]: v for k, v in found.items() if k in KEY_TO_FIELD}
     try:
         return Settings.model_validate(values)
     except ValidationError as exc:
         problems = [f"{ssm_key(str(e['loc'][0]))} ({e['msg']})" for e in exc.errors()]
         raise SettingsError(f"invalid settings under {path}: {'; '.join(problems)}") from exc
-
-
-def load_project_settings(
-    env: str, project: str, client: Any | None = None, prefix: str | None = None
-) -> dict[str, str]:
-    """Free-form per-project settings under `<prefix>/<env>/projects/<project>/`."""
-    if env not in ENVIRONMENTS:
-        raise SettingsError(f"unknown environment {env!r} (expected one of: {', '.join(ENVIRONMENTS)})")
-    path = f"{prefix.rstrip('/') if prefix else ssm_prefix()}/{env}/projects/{project}"
-    return _parameters(_client(client), path)

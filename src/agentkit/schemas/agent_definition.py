@@ -14,6 +14,8 @@ from typing import Annotated, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
+from agentkit.settings import PROJECT_PATTERN
+
 # Native harness names allow 40 chars and the deployed name is `<prefix>_<name>`; the combined length is checked at
 # deploy time, the cap here leaves room for a prefix such as `test_`.
 MAX_NAME_LENGTH = 32
@@ -187,6 +189,15 @@ class AgentDefinition(_Strict):
     """An agent as the project author describes it (`agent.yaml`)."""
 
     schema_version: Literal[1] = Field(description="Version of this file format. Always 1 for now.")
+    project: Annotated[str, StringConstraints(pattern=PROJECT_PATTERN)] = Field(
+        description=(
+            "Name of this project in the platform registry (`registry/<project>.json`): lowercase letters, digits and "
+            "hyphens, up to 40 characters. AgentKit deploys with the role `agentkit-<env>-<project>-deploy` and reads "
+            "`/agentkit/<env>/projects/<project>/`, which exist only for the environments the project is registered "
+            "for."
+        ),
+        examples=["support-triage"],
+    )
     name: Annotated[str, StringConstraints(pattern=rf"^[A-Za-z][A-Za-z0-9]{{0,{MAX_NAME_LENGTH - 1}}}$")] = Field(
         description=(
             f"Agent name: a letter, then letters and digits, up to {MAX_NAME_LENGTH} characters (no underscores or "

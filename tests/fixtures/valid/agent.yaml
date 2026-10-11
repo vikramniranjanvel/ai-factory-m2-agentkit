@@ -1,5 +1,6 @@
 # yaml-language-server: $schema=../../../schemas/agent-definition.schema.json
 schema_version: 1
+project: support-triage
 name: supportTriage
 description: Reads a support ticket and suggests a resolution.
 model:

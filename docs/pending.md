@@ -40,10 +40,11 @@ Sections are named for the repo the work belongs in: **agentkit** (schema docume
 
 The flow works: PR a file into the platform's `registry/`, merge, then the repo deploys with `templates/project-deploy.yml`. Gaps:
 
-- [ ] Registry PRs have no checks beyond `cdk synth`: verify the repo exists, the id matches the name, targets are known environments, and project names are unique
+- [ ] Registry PRs: `cdk synth` now checks the project name, the file name and the targets; still unchecked: that the repo exists and the id matches it
 - [ ] The project repo's GitHub environments `dev` and `test` have no branch rule or reviewers (`prod` is restricted to `main` by `scripts/setup.sh`, and was done by hand for `support-triage`); two open PRs overwrite each other's `test` stack. Required reviewers need a paid GitHub plan
-- [ ] All projects share one deploy role (broad AgentCore and CDK rights), so a project can overwrite another's stack if agent names clash; consider a role per project or a name check
-- [ ] API keys are one per credential name and shared by every project using that name; `scripts/setup.sh` prompts for them, but who owns each key is not decided. `prod`'s `openai-key` is a copy of `test`'s, and the dev/test key was pasted into a chat: rotate it and give `prod` its own
+- [x] Role and SSM record per project and environment; a project reads only its own settings and keys (platform branch `project-scoped-access`)
+- [ ] The CDK bootstrap and CloudFormation execution roles are still shared, so a project could change another's stack; needs an execution role or permissions boundary per project
+- [ ] API keys are one per project, environment and credential name; `scripts/setup.sh` prompts for them, but who owns each key is not decided. `prod`'s `openai-key` is a copy of `test`'s, and the dev/test key was pasted into a chat: rotate it and give `prod` its own
 - [x] Looking up the repo id and setting `AWS_ACCOUNT_ID`: done by the scaffolded `scripts/setup.sh`
 - [ ] `scripts/setup.sh` is untested against real GitHub and AWS (only its syntax is checked); the registry entry is still merged by hand
 - [ ] The workflow files in the init template are copies of `platform/templates/`; no check keeps them equal

@@ -63,7 +63,7 @@ def promote_project(
     """Make `version` (default: the latest) the one served by the `live` endpoint of the agent in `env`."""
     root = Path(root)
     definition = load_agent_definition(root / "agent.yaml")
-    settings = load_settings(env, client=ssm_client)
+    settings = load_settings(env, definition.project, client=ssm_client)
     if control is None:
         import boto3
 

@@ -45,6 +45,21 @@ def test_every_token_is_replaced(tmp_path):
     assert yaml.safe_load((target / "agent.yaml").read_text())["description"] == "Does: things"
     setup = (target / "scripts/setup.sh").read_text()
     assert f'REPO="{REPO_PREFIX}my-agent"' in setup and 'PROJECT="my-agent"' in setup
+    assert yaml.safe_load((target / "agent.yaml").read_text())["project"] == "my-agent"
+    assert 'name="/agentkit/$env/projects/$PROJECT/credentials/$CREDENTIAL"' in setup
+
+
+def test_workflows_derive_the_role_from_the_projects_name(tmp_path):
+    target = init_project("myAgent", tmp_path / "out")
+    for name in ("deploy", "promote"):
+        text = (target / f".github/workflows/{name}.yml").read_text()
+        assert "yq -r .project agent.yaml" in text
+        assert "role/agentkit-${{ env.TARGET }}-${{ env.PROJECT }}-deploy" in text
+
+
+def test_a_name_whose_project_name_would_be_too_long_is_refused(tmp_path):
+    with pytest.raises(InitError, match="project name"):
+        init_project("aBcDeFgHiJkLmNoPqRsTuVwXyZaBcDeF", tmp_path / "out")
 
 
 def test_workflows_parse_and_match_the_platform_events(tmp_path):

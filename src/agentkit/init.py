@@ -19,6 +19,7 @@ REPO_PREFIX = "ai-factory-m2-"
 NAME_PATTERN = re.compile(rf"^[A-Za-z][A-Za-z0-9]{{0,{MAX_NAME_LENGTH - 1}}}$")
 REPO_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 EXECUTABLE = {"scripts/setup.sh"}
+MAX_PROJECT_LENGTH = 40  # the same cap as the `project` field in agent.yaml
 
 
 class InitError(RuntimeError):
@@ -45,6 +46,11 @@ def init_project(
         raise InitError(
             f"'{name}' is not a valid agent name: letters and digits only, starting with a letter, "
             f"at most {MAX_NAME_LENGTH} characters (for example supportTriage)"
+        )
+    if len(slug(name)) > MAX_PROJECT_LENGTH:
+        raise InitError(
+            f"'{name}' gives the project name '{slug(name)}', which is over {MAX_PROJECT_LENGTH} characters "
+            "(every capital letter adds a hyphen); choose a shorter name"
         )
     repo = repo or REPO_PREFIX + slug(name)
     if not REPO_PATTERN.match(repo):

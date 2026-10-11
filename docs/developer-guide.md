@@ -17,7 +17,7 @@ shows what you do and refers to it for the reasons.
 
 - `uv` (Python), Node 22, and the native AgentCore CLI: `npm install -g @aws/agentcore@0.31.1` (this exact version).
 - AgentKit: `uv tool install "git+https://github.com/vikramniranjanvel/ai-factory-m2-agentkit"` (the repo is public).
-- AWS credentials for the account with access to `dev` (the deploy role `agentkit-dev-deploy` is assumed for you).
+- AWS credentials for the account that the platform trusts for `dev` (your project's deploy role `agentkit-dev-<project>-deploy` is assumed for you). `test` and `prod` deploy only from CI.
   CI needs no keys: it uses GitHub OIDC.
 
 ## Start a new agent
@@ -31,7 +31,8 @@ and tells you what to do next. The starter agent answers "ping" with "pong", so 
 Then, once, in the new folder: `scripts/setup.sh`. It creates the GitHub repo and environments, sets
 `AWS_ACCOUNT_ID`, shows the registry entry and asks for the model key per environment. **Someone on the platform side
 must merge the registry entry** (platform repo, `registry/<project>.json`) before your repo can deploy: until then the
-deploy job cannot assume the AWS role. See "Onboarding" in the platform guide.
+deploy job cannot assume the AWS role. See "Onboarding" in the platform guide. The registry name is the `project`
+field in `agent.yaml` (`agentkit init` sets it to the kebab-case name, for example `my-agent`).
 
 ## What is in the repo
 
@@ -47,12 +48,13 @@ deploy job cannot assume the AWS role. See "Onboarding" in the platform guide.
 ### agent.yaml
 
     schema_version: 1
+    project: support-triage        # the platform registry entry; names the deploy role and the SSM record
     name: supportTriage            # becomes the Harness name <env>_supportTriage
     description: ...
     model:
       provider: open_ai            # bedrock | open_ai | gemini | lite_llm
       model_id: gpt-6-luna
-      credential: openai-key       # SSM key /agentkit/<env>/credentials/openai-key; omit for bedrock
+      credential: openai-key       # SSM key /agentkit/<env>/projects/<project>/credentials/openai-key; omit for bedrock
     prompt: prompts/system.md
     memory: {mode: disabled}       # or managed (AgentCore memory, with strategies)
 
@@ -94,7 +96,7 @@ at the edge of what the agent usually scores; with few scenarios one answer chan
 ## Daily loop
 
     agentkit validate                              # schemas and datasets, offline, fast
-    agentkit deploy --env dev                      # deploy your working copy to dev (uses the deploy role)
+    agentkit deploy --env dev                      # deploy your working copy to dev (as your project's deploy role)
     agentkit evaluate --env dev --suite smoke      # runs here, with your AWS credentials
     agentkit evaluate --env dev --suite full       # also scores with AgentCore (about 8 to 14 minutes)
 
@@ -147,18 +149,20 @@ ticked. No evaluation runs (that version was evaluated when first promoted). It 
 | `agentkit promote --env E [--version N\|latest] [--report FILE]` | make a version live (older = rollback) |
 | `agentkit cleanup-endpoint --env E --run-id ID` | delete one run's temporary endpoint (the evaluation infrastructure uses this) |
 
-`--no-assume-role` is for CI, where the OIDC session already is the deploy role. `AGENTKIT_SSM_PREFIX` changes the
+`--no-assume-role` is for CI, where the OIDC session already is the project's deploy role. `AGENTKIT_SSM_PREFIX` changes the
 SSM prefix (default `/agentkit`).
 
 ## When something fails
 
 | Message or symptom | Cause and fix |
 |---|---|
-| `API key not found in SSM: /agentkit/<env>/credentials/<name>` | the model key is missing for that environment; put it as a SecureString (the setup script prompts for it) |
+| `API key not found in SSM: /agentkit/<env>/projects/<project>/credentials/<name>` | the model key is missing for that environment; put it as a SecureString (the setup script prompts for it) |
 | `Not authorized to perform sts:AssumeRoleWithWebIdentity` in CI | the repo is not registered for that target in the platform repo, or the job's GitHub environment name is not the target |
 | `no Harness named '<env>_<agent>' ... Deploy it first` | evaluating or promoting an agent that was never deployed to that environment |
 | `Harness version N is ..., not READY` | the deployment is still in progress or failed; check the stack `AgentCore-<agent>-<env>` |
-| `unknown environment` / missing SSM setting | the environment's platform stack is not deployed; ask the platform owner |
+| `cannot assume ...agentkit-<env>-<project>-deploy: ... not registered` | the project is not registered for that environment in the platform repo, or your identity is not trusted there (`test` and `prod` deploy only from CI) |
+| `no settings for project '<project>' in <env>` | the project's record is missing: it is not registered for that environment, or the platform stack is not deployed; ask the platform owner |
+| `unknown environment` | `--env` must be `dev`, `test` or `prod` |
 | `--remote` needs `eval/state-machine-arn` | same: the environment's evaluation stack is missing |
 | Gate fails only on helpfulness, by one scenario | LLM variance; rerun once. If it keeps failing, fix the prompt or the scenario rather than lowering the gate |
 | Outcome ERROR | something could not be run or scored (model error, missing telemetry, scoring job failed); read `error` in the report |
@@ -169,4 +173,4 @@ SSM prefix (default `/agentkit`).
 
 - No required reviewer gates `prod` (a GitHub plan limit): the promote workflow, started by a person, is the gate.
 - `dev`, `test` and `prod` share one AWS account, separated by the resource prefix.
-- The model API key is one SSM value per environment and credential name; projects using the same name share it.
+- The model API key is one SSM value per project, environment and credential name; a project reads only its own.

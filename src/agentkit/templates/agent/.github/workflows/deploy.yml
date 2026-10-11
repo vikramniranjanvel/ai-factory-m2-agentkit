@@ -13,8 +13,9 @@
 #
 # A branch with an open pull request is deployed twice, to dev by the push and to test by the pull request.
 #
-# Access comes from the platform registry (registry/<project>.json): the deploy role only trusts the registered
-# repository, in a job whose GitHub environment is a registered target.
+# Access comes from the platform registry (registry/<project>.json): each registered target has a deploy role
+# agentkit-<env>-<project>-deploy that trusts only this repository, in a job whose GitHub environment is that target.
+# An environment the project is not registered for has no role, so the job fails at the AWS login step.
 name: deploy
 
 on:
@@ -52,11 +53,14 @@ jobs:
           npm install -g @aws/agentcore@0.31.1
       - name: Validate
         run: agentkit validate
+      # The project name is agent.yaml's `project`, which is also the platform registry entry's name.
+      - name: Project name
+        run: echo "PROJECT=$(yq -r .project agent.yaml)" >> "$GITHUB_ENV"
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/agentkit-${{ env.TARGET }}-deploy
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/agentkit-${{ env.TARGET }}-${{ env.PROJECT }}-deploy
           aws-region: ${{ env.AWS_REGION }}
-      # The OIDC session already is the deploy role, so AgentKit must not assume it a second time.
+      # The OIDC session already is the project's deploy role, so AgentKit must not assume it a second time.
       - name: Deploy
         run: agentkit deploy --env "$TARGET" --no-assume-role
       # Runs in the environment's evaluation infrastructure on a temporary endpoint pinned to the version just
