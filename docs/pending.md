@@ -73,7 +73,11 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 - [ ] The evaluation image was never built locally (no Docker daemon); the first CI deploy built it. Changing `agentkitRef` in the platform repo is how the evaluating code is updated
 - [x] `agentkit promote`: update the dedicated `live` endpoint to a version (also rollback); `--report` must be a PASS of exactly that version
 - [ ] Endpoint-level smoke test scripts
-- [ ] Workflow templates beyond dev deploy: PR to test with smoke and eval, main to prod candidate with approval and dedicated endpoint
+- [x] Workflow templates for the delivery events (2026-10-11): branch to dev, PR to test, main to prod candidate, manual promote workflow; see docs/delivery.md
+- [x] `test` and `prod` environments (2026-10-11): stacks, roles, settings, `support-triage` deployed, evaluated and promoted in both
+- [ ] Rollback is untested against real AWS: every environment has had only one Harness version
+- [ ] All pull requests share one `test` stack
+- [ ] No required reviewer on `prod` (GitHub plan); the manual promote workflow is the gate
 
 ## Project repos
 

@@ -80,12 +80,14 @@ def promote_project(
     else:
         out("warning: no --report given, promoting without evidence of an evaluation")
 
+    path = Path(manifest_path) if manifest_path else root / "reports" / f"release-{definition.name}-{env}.json"
     current = _get(control, harness.id)
     previous = str(current["liveVersion"]) if current and current.get("liveVersion") else None
     if current is None:
         control.create_harness_endpoint(harnessId=harness.id, endpointName=ENDPOINT, targetVersion=harness.version)
     elif previous != harness.version:
         control.update_harness_endpoint(harnessId=harness.id, endpointName=ENDPOINT, targetVersion=harness.version)
+    unchanged = previous == harness.version
     out(f"{harness.name}: '{ENDPOINT}' {previous or 'does not exist'} -> {harness.version}")
 
     deadline = time.monotonic() + TIMEOUT
@@ -101,6 +103,11 @@ def promote_project(
             )
         sleep(5)
 
+    if unchanged and path.exists():
+        # Nothing moved: keep the manifest of the release that did, with its previous version.
+        out(f"'{ENDPOINT}' already serves version {harness.version}; manifest {path} unchanged")
+        return json.loads(path.read_text())
+
     manifest = {
         "agent": definition.name,
         "env": env,
@@ -108,12 +115,11 @@ def promote_project(
         "harness_id": harness.id,
         "endpoint": ENDPOINT,
         "version": harness.version,
-        "previous_version": previous,
+        "previous_version": None if unchanged else previous,
         "commit": os.environ.get("GITHUB_SHA", "local"),
         "evaluation": evidence,
         "promoted_at": datetime.now(UTC).isoformat(),
     }
-    path = Path(manifest_path) if manifest_path else root / "reports" / f"release-{definition.name}-{env}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(manifest, indent=2) + "\n")
     out(f"'{ENDPOINT}' now serves version {harness.version}; manifest {path}")
