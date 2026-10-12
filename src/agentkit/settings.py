@@ -36,6 +36,9 @@ class McpGrant(BaseModel):
 
     server: str
     tools: list[str]
+    gateway_arn: Annotated[str, StringConstraints(pattern=r"^arn:aws:bedrock-agentcore:.+:gateway/.+")] | None = Field(
+        default=None, description="Gateway serving this server. Set by the platform catalogue; agentkit never picks it."
+    )
 
 
 class Settings(BaseModel):
@@ -59,11 +62,8 @@ class Settings(BaseModel):
     )
     mcp_grants: list[McpGrant] | None = Field(
         default=None,
-        description="MCP tools the platform grants this project here (SSM `mcp/grants`, JSON). Needed when agent.yaml "
-        "declares tools.",
-    )
-    mcp_gateway_arn: Annotated[str, StringConstraints(pattern=r"^arn:aws:bedrock-agentcore:.+:gateway/.+")] | None = (
-        Field(default=None, description="ARN of this environment's MCP gateway. Needed when agent.yaml declares tools.")
+        description="MCP tools the platform grants this project here, each with the gateway that serves it "
+        "(SSM `mcp/grants`, JSON). Needed when agent.yaml declares tools.",
     )
 
     @field_validator("mcp_grants", mode="before")

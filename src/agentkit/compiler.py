@@ -105,9 +105,6 @@ def _truncation(definition: AgentDefinition) -> dict | None:
     return _drop_none({"strategy": t.strategy, "config": config})
 
 
-GATEWAY_TOOL_NAME = "gateway"  # the harness tool that carries the environment's gateway; allowedTools refer to it
-
-
 def check_tool_grants(definition: AgentDefinition, settings: Settings, env: str) -> list[str]:
     """One message per requested tool that the platform has not granted to this project in `env`. Empty means all
     requests are granted. The grant is the platform's decision; this check only reports, it never widens access."""
@@ -132,20 +129,33 @@ def check_tool_grants(definition: AgentDefinition, settings: Settings, env: str)
 def _gateway_tools(definition: AgentDefinition, settings: Settings, env: str) -> tuple[list[dict], list[str] | None]:
     """The harness `tools` and `allowedTools` for the requested MCP tools, after the grant check.
 
-    The gateway exposes a tool as `<target>___<tool>`; the platform names each target after its catalogue server id.
-    `allowedTools` narrows what the agent sees; the gateway's own policy is what enforces access."""
+    Each granted server carries the gateway that serves it (from the platform catalogue); agentkit only passes it on.
+    One harness tool per distinct gateway. The gateway exposes a tool as `<target>___<tool>`, the target being named
+    after the catalogue server id. `allowedTools` narrows what the agent sees; the gateway's policy enforces."""
     if not definition.tools:
         return [], None
-    settings.require("mcp_grants", "mcp_gateway_arn")
+    settings.require("mcp_grants")
     if problems := check_tool_grants(definition, settings, env):
         raise CompileError("MCP tools are not granted:\n- " + "\n- ".join(problems))
-    tool = {
-        "type": "agentcore_gateway",
-        "name": GATEWAY_TOOL_NAME,
-        "config": {"agentCoreGateway": {"gatewayArn": settings.mcp_gateway_arn, "outboundAuth": {"awsIam": {}}}},
-    }
-    allowed = [f"@{GATEWAY_TOOL_NAME}/{r.server}___{t}" for r in definition.tools for t in r.tools]
-    return [tool], allowed
+    gateway_of = {g.server: g.gateway_arn for g in settings.mcp_grants or []}
+    missing = [r.server for r in definition.tools if not gateway_of[r.server]]
+    if missing:
+        raise CompileError(
+            f"no gateway is set for server(s) {', '.join(missing)} in the platform catalogue (gateway_arn); "
+            "the platform team must set it before agents can use them"
+        )
+    arns = sorted({gateway_of[r.server] for r in definition.tools})
+    names = {arn: f"gateway-{i}" for i, arn in enumerate(arns, 1)}
+    tools = [
+        {
+            "type": "agentcore_gateway",
+            "name": names[arn],
+            "config": {"agentCoreGateway": {"gatewayArn": arn, "outboundAuth": {"awsIam": {}}}},
+        }
+        for arn in arns
+    ]
+    allowed = [f"@{names[gateway_of[r.server]]}/{r.server}___{t}" for r in definition.tools for t in r.tools]
+    return tools, allowed
 
 
 def compile_harness(definition: AgentDefinition, settings: Settings, env: str, root: str | Path) -> CompiledHarness:

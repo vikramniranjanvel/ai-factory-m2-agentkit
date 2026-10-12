@@ -8,7 +8,7 @@ import yaml
 
 from agentkit.compiler import CompileError, compile_harness, credential_arn, harness_name
 from agentkit.schemas import AgentDefinition, load_agent_definition
-from agentkit.settings import Settings
+from agentkit.settings import McpGrant, Settings
 
 FIXTURE = Path(__file__).parent / "fixtures" / "valid"
 V1_HARNESS = Path(__file__).parent / "fixtures" / "v1" / "supportTriage.harness.json"
@@ -186,8 +186,12 @@ GATEWAY = "arn:aws:bedrock-agentcore:us-east-1:167769274046:gateway/dev-gw-abc12
 KB = [{"server": "kb-search", "tools": ["search", "get_doc"]}]
 
 
-def with_mcp(grants=None, gateway=GATEWAY) -> Settings:
-    return SETTINGS.model_copy(update={"mcp_grants": grants, "mcp_gateway_arn": gateway})
+def with_mcp(grants=None) -> Settings:
+    return SETTINGS.model_copy(update={"mcp_grants": grants})
+
+
+def grant(server, tools, gateway=GATEWAY):
+    return McpGrant(server=server, tools=tools, gateway_arn=gateway)
 
 
 def compile_tools(requested, settings, env="dev"):
@@ -195,26 +199,22 @@ def compile_tools(requested, settings, env="dev"):
 
 
 def test_granted_tools_compile_to_a_gateway_tool_and_an_allow_list():
-    from agentkit.settings import McpGrant
-
-    settings = with_mcp([McpGrant(server="kb-search", tools=["search", "get_doc", "list_docs"])])
+    settings = with_mcp([grant("kb-search", ["search", "get_doc", "list_docs"])])
     spec = compile_tools(KB, settings).spec
     assert spec["tools"] == [
         {
             "type": "agentcore_gateway",
-            "name": "gateway",
+            "name": "gateway-1",
             "config": {"agentCoreGateway": {"gatewayArn": GATEWAY, "outboundAuth": {"awsIam": {}}}},
         }
     ]
     # only what was requested, not everything that was granted
-    assert spec["allowedTools"] == ["@gateway/kb-search___search", "@gateway/kb-search___get_doc"]
+    assert spec["allowedTools"] == ["@gateway-1/kb-search___search", "@gateway-1/kb-search___get_doc"]
 
 
 @pytest.mark.skipif(native_root() is None, reason="@aws/agentcore is not installed globally")
 def test_native_schema_accepts_gateway_tools():
-    from agentkit.settings import McpGrant
-
-    spec = compile_tools(KB, with_mcp([McpGrant(server="kb-search", tools=["search", "get_doc"])])).spec
+    spec = compile_tools(KB, with_mcp([grant("kb-search", ["search", "get_doc"])])).spec
     result = subprocess.run(
         ["node", "-e", NATIVE_CHECK, native_root(), json.dumps(spec)], capture_output=True, text=True
     )
@@ -227,9 +227,7 @@ def test_no_tools_requested_adds_nothing_and_needs_no_grant_record():
 
 
 def test_tool_not_granted_fails_naming_the_tool_and_environment():
-    from agentkit.settings import McpGrant
-
-    settings = with_mcp([McpGrant(server="kb-search", tools=["search"])])
+    settings = with_mcp([grant("kb-search", ["search"])])
     with pytest.raises(CompileError) as exc:
         compile_tools(KB, settings, env="prod")
     assert "kb-search.get_doc" in str(exc.value) and "in prod" in str(exc.value)
@@ -237,9 +235,7 @@ def test_tool_not_granted_fails_naming_the_tool_and_environment():
 
 
 def test_server_not_granted_fails():
-    from agentkit.settings import McpGrant
-
-    settings = with_mcp([McpGrant(server="ticketing", tools=["create_ticket"])])
+    settings = with_mcp([grant("ticketing", ["create_ticket"])])
     with pytest.raises(CompileError, match="server 'kb-search' is not granted"):
         compile_tools(KB, settings)
 
@@ -260,8 +256,16 @@ def test_nothing_granted_is_not_the_same_as_no_record():
         compile_tools(KB, with_mcp(None))  # record missing
 
 
-def test_missing_gateway_is_reported_not_guessed():
-    from agentkit.settings import McpGrant, SettingsError
+def test_a_granted_server_without_a_gateway_is_reported_not_guessed():
+    with pytest.raises(CompileError, match="no gateway is set for server.*kb-search"):
+        compile_tools(KB, with_mcp([grant("kb-search", ["search", "get_doc"], gateway=None)]))
 
-    with pytest.raises(SettingsError, match="mcp/gateway-arn"):
-        compile_tools(KB, with_mcp([McpGrant(server="kb-search", tools=["search", "get_doc"])], gateway=None))
+
+def test_servers_on_different_gateways_get_one_tool_each():
+    other = "arn:aws:bedrock-agentcore:us-east-1:167769274046:gateway/other-gw-xyz789"
+    settings = with_mcp([grant("kb-search", ["search", "get_doc"]), grant("ticketing", ["create_ticket"], other)])
+    spec = compile_tools(KB + [{"server": "ticketing", "tools": ["create_ticket"]}], settings).spec
+    arns = {t["name"]: t["config"]["agentCoreGateway"]["gatewayArn"] for t in spec["tools"]}
+    assert arns == {"gateway-1": GATEWAY, "gateway-2": other}  # ordered by ARN
+    assert "@gateway-2/ticketing___create_ticket" in spec["allowedTools"]
+    assert "@gateway-1/kb-search___search" in spec["allowedTools"]
