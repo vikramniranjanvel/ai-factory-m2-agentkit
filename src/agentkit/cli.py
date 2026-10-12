@@ -7,6 +7,7 @@ import sys
 from collections.abc import Sequence
 
 from agentkit.assemble import AssembleError
+from agentkit.compiler import CompileError
 from agentkit.deploy import DeployError, deploy_project
 from agentkit.evaluate import EvaluateError, cleanup_run, evaluate_project
 from agentkit.harness import HarnessError
@@ -32,7 +33,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 def cmd_deploy(args: argparse.Namespace) -> int:
     try:
         deploy_project(args.path, args.env, use_role=not args.no_assume_role, keep=args.keep)
-    except (DeployError, SettingsError, AssembleError) as exc:
+    except (DeployError, SettingsError, AssembleError, CompileError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     print(f"deployed to {args.env}")
