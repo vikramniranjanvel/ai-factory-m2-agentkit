@@ -9,11 +9,12 @@ account.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, field_validator
 
 PREFIX_ENV_VAR = "AGENTKIT_SSM_PREFIX"
 DEFAULT_PREFIX = "/agentkit"
@@ -26,6 +27,15 @@ PROJECT_PATTERN = r"^[a-z][a-z0-9-]{0,39}$"
 
 class SettingsError(RuntimeError):
     """Settings could not be read from SSM or are incomplete."""
+
+
+class McpGrant(BaseModel):
+    """Tools of one MCP server that the platform lets this project use in this environment."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    server: str
+    tools: list[str]
 
 
 class Settings(BaseModel):
@@ -47,6 +57,25 @@ class Settings(BaseModel):
     mlflow_tracking_uri: Annotated[str, StringConstraints(pattern=r"^https?://.+")] | None = Field(
         default=None, description="MLflow tracking server. Needed by `evaluate`."
     )
+    mcp_grants: list[McpGrant] | None = Field(
+        default=None,
+        description="MCP tools the platform grants this project here (SSM `mcp/grants`, JSON). Needed when agent.yaml "
+        "declares tools.",
+    )
+    mcp_gateway_arn: Annotated[str, StringConstraints(pattern=r"^arn:aws:bedrock-agentcore:.+:gateway/.+")] | None = (
+        Field(default=None, description="ARN of this environment's MCP gateway. Needed when agent.yaml declares tools.")
+    )
+
+    @field_validator("mcp_grants", mode="before")
+    @classmethod
+    def _parse_grants(cls, value: Any) -> Any:
+        """SSM stores the grants as a JSON string."""
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"not valid JSON: {exc}") from exc
+        return value
 
     def require(self, *names: str) -> None:
         """Raise SettingsError naming the SSM keys for any of the given optional settings that are not set."""
@@ -56,9 +85,9 @@ class Settings(BaseModel):
 
 
 def ssm_key(field: str) -> str:
-    """Field name to SSM key: eval_state_machine_arn -> eval/state-machine-arn."""
+    """Field name to SSM key: eval_state_machine_arn -> eval/state-machine-arn, mcp_grants -> mcp/grants."""
     head, _, rest = field.partition("_")
-    return f"eval/{rest.replace('_', '-')}" if head == "eval" else field.replace("_", "-")
+    return f"{head}/{rest.replace('_', '-')}" if head in ("eval", "mcp") else field.replace("_", "-")
 
 
 KEY_TO_FIELD = {ssm_key(f): f for f in Settings.model_fields}

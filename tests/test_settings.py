@@ -44,6 +44,7 @@ def test_key_mapping():
     assert ssm_key("eval_state_machine_arn") == "eval/state-machine-arn"
     assert ssm_key("mlflow_tracking_uri") == "mlflow-tracking-uri"
     assert KEY_TO_FIELD["eval/results-bucket"] == "eval_results_bucket"
+    assert ssm_key("mcp_grants") == "mcp/grants" and KEY_TO_FIELD["mcp/gateway-arn"] == "mcp_gateway_arn"
 
 
 def test_core_settings():
@@ -149,3 +150,26 @@ def test_ssm_failure_is_wrapped():
 
     with pytest.raises(SettingsError, match="AccessDenied"):
         load_settings("dev", PROJECT, Broken())
+
+
+GATEWAY = "arn:aws:bedrock-agentcore:us-east-1:167769274046:gateway/dev-gw-abc123"
+
+
+def test_mcp_grants_are_parsed_from_the_json_the_platform_publishes():
+    grants = '[{"server":"kb-search","tools":["search","get_doc"]}]'
+    s = load_settings("dev", PROJECT, ssm(**{"mcp/grants": grants, "mcp/gateway-arn": GATEWAY}))
+    assert [(g.server, g.tools) for g in s.mcp_grants] == [("kb-search", ["search", "get_doc"])]
+    assert s.mcp_gateway_arn == GATEWAY
+
+
+def test_empty_grants_differ_from_a_missing_record():
+    assert load_settings("dev", PROJECT, ssm(**{"mcp/grants": "[]"})).mcp_grants == []
+    assert load_settings("dev", PROJECT, ssm()).mcp_grants is None
+
+
+@pytest.mark.parametrize(
+    "value", ["not json", '{"server":"x"}', '[{"server":"x"}]', '[{"server":"x","tools":[],"extra":1}]']
+)
+def test_malformed_grants_name_the_ssm_key(value):
+    with pytest.raises(SettingsError, match="mcp/grants"):
+        load_settings("dev", PROJECT, ssm(**{"mcp/grants": value}))

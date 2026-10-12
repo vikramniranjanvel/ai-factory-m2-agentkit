@@ -79,7 +79,7 @@ Do these in order. Steps 5 and 6 need someone on the platform side (if that is y
     prompt: prompts/system.md
     memory: {mode: disabled}       # or managed (AgentCore memory, with strategies)
 
-Also available: `limits` (iterations, timeout, tokens), `truncation`, `skills`, `tools` (MCP tools you request: `- server: kb-search` with `tools: [search]`, explicit names only; the platform registry must grant them, wiring into deploys comes later), `tags`, and model sampling
+Also available: `limits` (iterations, timeout, tokens), `truncation`, `skills`, `tools` (MCP tools you request: `- server: kb-search` with `tools: [search]`, explicit names only; the platform registry must grant them: `deploy` fails and lists every requested tool that is not granted in that environment, and the granted ones are wired to the environment's MCP gateway), `tags`, and model sampling
 settings (`temperature`, `top_p`, `max_tokens`). Every field has a description; use the schema in your editor
 (`schemas/agent-definition.schema.json`, already referenced by the first line of the generated file).
 Unknown keys are errors. See also [schema-documentation.md](schema-documentation.md).

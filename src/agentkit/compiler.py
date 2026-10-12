@@ -105,6 +105,49 @@ def _truncation(definition: AgentDefinition) -> dict | None:
     return _drop_none({"strategy": t.strategy, "config": config})
 
 
+GATEWAY_TOOL_NAME = "gateway"  # the harness tool that carries the environment's gateway; allowedTools refer to it
+
+
+def check_tool_grants(definition: AgentDefinition, settings: Settings, env: str) -> list[str]:
+    """One message per requested tool that the platform has not granted to this project in `env`. Empty means all
+    requests are granted. The grant is the platform's decision; this check only reports, it never widens access."""
+    granted = {g.server: set(g.tools) for g in settings.mcp_grants or []}
+    problems = []
+    for request in definition.tools:
+        if request.server not in granted:
+            problems.append(
+                f"server '{request.server}' is not granted to project '{definition.project}' in {env}: it is not in "
+                f"the platform MCP catalogue, not enabled in {env}, or not yet granted in the registry"
+            )
+            continue
+        for tool in request.tools:
+            if tool not in granted[request.server]:
+                problems.append(
+                    f"tool {request.server}.{tool} is requested but not granted to project '{definition.project}' "
+                    f"in {env} (granted for {request.server}: {', '.join(sorted(granted[request.server])) or 'none'})"
+                )
+    return problems
+
+
+def _gateway_tools(definition: AgentDefinition, settings: Settings, env: str) -> tuple[list[dict], list[str] | None]:
+    """The harness `tools` and `allowedTools` for the requested MCP tools, after the grant check.
+
+    The gateway exposes a tool as `<target>___<tool>`; the platform names each target after its catalogue server id.
+    `allowedTools` narrows what the agent sees; the gateway's own policy is what enforces access."""
+    if not definition.tools:
+        return [], None
+    settings.require("mcp_grants", "mcp_gateway_arn")
+    if problems := check_tool_grants(definition, settings, env):
+        raise CompileError("MCP tools are not granted:\n- " + "\n- ".join(problems))
+    tool = {
+        "type": "agentcore_gateway",
+        "name": GATEWAY_TOOL_NAME,
+        "config": {"agentCoreGateway": {"gatewayArn": settings.mcp_gateway_arn, "outboundAuth": {"awsIam": {}}}},
+    }
+    allowed = [f"@{GATEWAY_TOOL_NAME}/{r.server}___{t}" for r in definition.tools for t in r.tools]
+    return [tool], allowed
+
+
 def compile_harness(definition: AgentDefinition, settings: Settings, env: str, root: str | Path) -> CompiledHarness:
     """Build the native harness spec for `definition` in the given environment. `root` is the project directory."""
     harness_name(settings, definition)  # fail early if the deployed name would be too long
@@ -113,10 +156,7 @@ def compile_harness(definition: AgentDefinition, settings: Settings, env: str, r
     if not prompt.read_text().strip():
         raise CompileError(f"prompt file {definition.prompt} is empty")
 
-    if (
-        definition.tools
-    ):  # until the grant check and gateway wiring exist, never deploy tools that were silently dropped
-        raise CompileError("tools are declared in agent.yaml but compiling them is not implemented yet")
+    tools, allowed_tools = _gateway_tools(definition, settings, env)
 
     copies = [Copy(prompt, PROMPT_FILE)]
     skills = []
@@ -129,7 +169,8 @@ def compile_harness(definition: AgentDefinition, settings: Settings, env: str, r
         {
             "name": definition.name,
             "model": _model(definition, settings),
-            "tools": [],
+            "tools": tools,
+            "allowedTools": allowed_tools,
             "skills": skills,
             "memory": _memory(definition),
             "maxIterations": definition.limits.max_iterations,
