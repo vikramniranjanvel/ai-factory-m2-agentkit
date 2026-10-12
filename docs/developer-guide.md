@@ -15,24 +15,45 @@ shows what you do and refers to it for the reasons.
 
 ## Set up your machine
 
-- `uv` (Python), Node 22, and the native AgentCore CLI: `npm install -g @aws/agentcore@0.31.1` (this exact version).
+- `uv` (Python), Node 22 or newer, and the native AgentCore CLI: `npm install -g @aws/agentcore@0.31.1` (this exact version).
 - AgentKit: `uv tool install "git+https://github.com/vikramniranjanvel/ai-factory-m2-agentkit"` (the repo is public).
 - AWS credentials for the account that the platform trusts for `dev` (your project's deploy role `agentkit-dev-<project>-deploy` is assumed for you). `test` and `prod` deploy only from CI.
   CI needs no keys: it uses GitHub OIDC.
 
-## Start a new agent
+## Your first agent, end to end
 
-    agentkit init myAgent --description "Answers questions about orders"
+Do these in order. Steps 5 and 6 need someone on the platform side (if that is you, it is two small pull requests).
 
-Name: letters and digits, starting with a letter, up to 32 characters. Options: `--provider bedrock|open_ai|gemini|lite_llm`,
-`--model-id`, `--credential` (name of the model API key in SSM; not for bedrock), `--repo`. This creates `./my-agent/`
-and tells you what to do next. The starter agent answers "ping" with "pong", so the first deploy passes.
+1. **Install** (see above) and check `agentkit --help` and `agentcore --version` (0.31.1).
+2. **Create it.**
 
-Then, once, in the new folder: `scripts/setup.sh`. It creates the GitHub repo and environments, sets
-`AWS_ACCOUNT_ID`, shows the registry entry and asks for the model key per environment. **Someone on the platform side
-must merge the registry entry** (platform repo, `registry/<project>.json`) before your repo can deploy: until then the
-deploy job cannot assume the AWS role. See "Onboarding" in the platform guide. The registry name is the `project`
-field in `agent.yaml` (`agentkit init` sets it to the kebab-case name, for example `my-agent`).
+       agentkit init myAgent --description "Answers questions about orders"
+       cd my-agent
+
+   Name: letters and digits, starting with a letter, up to 32 characters. Options: `--provider bedrock|open_ai|gemini|lite_llm`,
+   `--model-id`, `--credential` (name of the model API key in SSM; not for bedrock), `--repo`. The starter agent answers
+   "ping" with "pong", so the first deploy passes.
+3. **Make it yours.** Edit `prompts/system.md`, `agent.yaml` and the scenarios in `evals/`, then `agentkit validate`
+   (offline, instant). Keep the "ping"/"pong" scenario until you have seen one green run.
+4. **Create the GitHub repo and environments, once:** `PLATFORM_DIR=../platform scripts/setup.sh`. It creates and pushes the
+   repo, creates the environments `dev`, `test` and `prod` (`prod` only deploys from `main`), sets `AWS_ACCOUNT_ID`, writes
+   `registry/<project>.json` into your platform checkout (without `PLATFORM_DIR` it prints the entry) and asks for the model key per
+   environment (Enter skips one). The `project` field in `agent.yaml` is the registry name.
+5. **Register the project.** In the platform repo, open a pull request with `registry/<project>.json` and merge it.
+   Dev and test are applied by the merge; prod trust is applied only when someone runs the platform's `deploy` workflow by hand
+   (Actions, deploy, Run workflow on `main`). Also update the project list in the platform's
+   `infra/governance/test/environment-stack.test.ts`, or CI fails. Until this is done the deploy job cannot assume its AWS role,
+   so the first run triggered by the setup push to `main` fails: re-run it afterwards.
+6. **Make sure the model key exists** for each environment you will use (`dev`, `test`, `prod`), at
+   `/agentkit/<env>/projects/<project>/credentials/<name>` (the setup script offers to store it).
+7. **First deploy from your machine:**
+
+       agentkit deploy --env dev
+       agentkit evaluate --env dev --suite smoke      # expect: OUTCOME: PASS
+
+   The first deploy takes a few minutes and creates the stack `AgentCore-<name>-dev` and the Harness `dev_<name>`.
+8. **Ship through GitHub.** Push a branch (deploys to `dev`), open a pull request (deploys to `test`, runs smoke and full), merge
+   (deploys a prod candidate), then run **promote** ("Release to production" below). A prod candidate serves nobody until it is promoted.
 
 ## What is in the repo
 
@@ -156,6 +177,7 @@ SSM prefix (default `/agentkit`).
 
 | Message or symptom | Cause and fix |
 |---|---|
+| `Could not assume role with OIDC: Request ARN is invalid` in CI | the repo variable `AWS_ACCOUNT_ID` is not set (`scripts/setup.sh` sets it); set it and re-run |
 | `API key not found in SSM: /agentkit/<env>/projects/<project>/credentials/<name>` | the model key is missing for that environment; put it as a SecureString (the setup script prompts for it) |
 | `Not authorized to perform sts:AssumeRoleWithWebIdentity` in CI | the repo is not registered for that target in the platform repo, or the job's GitHub environment name is not the target |
 | `no Harness named '<env>_<agent>' ... Deploy it first` | evaluating or promoting an agent that was never deployed to that environment |
@@ -165,6 +187,7 @@ SSM prefix (default `/agentkit`).
 | `unknown environment` | `--env` must be `dev`, `test` or `prod` |
 | `--remote` needs `eval/state-machine-arn` | same: the environment's evaluation stack is missing |
 | Gate fails only on helpfulness, by one scenario | LLM variance; rerun once. If it keeps failing, fix the prompt or the scenario rather than lowering the gate |
+| Helpfulness gate fails on an agent that is supposed to refuse most questions | the judge scores a correct refusal as unhelpful. Keep the refusals enforced by a regex in `expected.answer` and set a lower helpfulness gate for that agent (for example 0.5), recording why in `evaluation.yaml` |
 | Outcome ERROR | something could not be run or scored (model error, missing telemetry, scoring job failed); read `error` in the report |
 | Promote says the report is for another version | evaluate again with `--version N` for the version you are promoting |
 | Leftover endpoint named `eval_...` | a killed run; the next evaluation sweeps endpoints older than 60 minutes |
