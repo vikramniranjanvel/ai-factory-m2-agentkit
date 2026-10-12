@@ -66,7 +66,7 @@ The flow works: PR a file into the platform's `registry/`, merge, then the repo 
 - [x] `infra/evaluation/` (Step Functions + ECS Fargate, results bucket, `eval/*` settings) deployed to dev, test and prod (2026-10-11)
 - [ ] `infra/mlflow/` (tracking server, retention protection, `mlflow/tracking-uri`)
 - [ ] `agentkit-platform init` scaffolding
-- [ ] MCP gateway (out of scope this iteration)
+- [ ] MCP gateway: deploy-time grant check and gateway wiring are done; the per-environment gateway and runtime policy are pending (see the platform repo's docs/mcp-connectivity-implementation-plan.md)
 
 ## Agentkit: evaluation and delivery (phases 6 and 7)
 
