@@ -112,6 +112,34 @@ class Skill(_Strict):
     _check_path = field_validator("path")(_project_relative)
 
 
+# Catalogue ids and tool names are lowercase and explicit. `*` can never match, so wildcards are rejected by pattern.
+SERVER_ID_PATTERN = r"^[a-z][a-z0-9-]{0,39}$"
+TOOL_NAME_PATTERN = r"^[a-z][a-z0-9_-]{0,63}$"
+
+
+class ToolRequest(_Strict):
+    """Tools the agent needs from one MCP server. A request: the platform registry decides whether it is granted."""
+
+    server: Annotated[str, StringConstraints(pattern=SERVER_ID_PATTERN)] = Field(
+        description="Id of an MCP server in the platform catalogue (`mcp/servers/<id>.json`).",
+        examples=["kb-search"],
+    )
+    tools: Annotated[
+        list[Annotated[str, StringConstraints(pattern=TOOL_NAME_PATTERN)]], Field(min_length=1, max_length=50)
+    ] = Field(
+        description="Tool names on that server, listed explicitly. Wildcards are not allowed.",
+        examples=[["search", "get_doc"]],
+    )
+
+    @field_validator("tools")
+    @classmethod
+    def _unique_tools(cls, value: list[str]) -> list[str]:
+        duplicates = sorted({t for t in value if value.count(t) > 1})
+        if duplicates:
+            raise ValueError(f"tools listed more than once: {', '.join(duplicates)}")
+        return value
+
+
 class MemoryDisabled(_Strict):
     """No memory: every conversation starts empty."""
 
@@ -215,9 +243,12 @@ class AgentDefinition(_Strict):
         examples=["prompts/system.md"],
     )
     skills: list[Skill] = Field(default=[], description="Skills available to the agent.")
-    # Reserved: no tools or MCP gateway in this iteration (see implementation plan, decision 2).
-    tools: list[dict] = Field(
-        default=[], description="Reserved. Tools are not supported in this iteration; must be empty."
+    tools: list[ToolRequest] = Field(
+        default=[],
+        description=(
+            "MCP tools the agent needs, per server. This is a request: the deploy fails if the platform registry "
+            "does not grant every listed tool for the environment."
+        ),
     )
     memory: Memory = Field(default=MemoryDisabled(mode="disabled"), description="Conversation memory. Off by default.")
     limits: Limits = Field(default=Limits(), description="Runtime limits for one invocation.")
@@ -234,9 +265,11 @@ class AgentDefinition(_Strict):
 
     @field_validator("tools")
     @classmethod
-    def _no_tools_yet(cls, value: list[dict]) -> list[dict]:
-        if value:
-            raise ValueError("tools are not supported in this iteration")
+    def _one_entry_per_server(cls, value: list[ToolRequest]) -> list[ToolRequest]:
+        servers = [t.server for t in value]
+        duplicates = sorted({s for s in servers if servers.count(s) > 1})
+        if duplicates:
+            raise ValueError(f"server listed more than once: {', '.join(duplicates)}")
         return value
 
     @field_validator("tags")

@@ -22,6 +22,21 @@ def test_v1_equivalent_loads():
     assert d.name == "supportTriage" and d.model.credential == "openai-key" and d.memory.mode == "disabled"
 
 
+def test_tool_requests_load():
+    d = AgentDefinition.model_validate(
+        base(
+            tools=[
+                {"server": "kb-search", "tools": ["search", "get_doc"]},
+                {"server": "ticketing", "tools": ["create_ticket"]},
+            ]
+        )
+    )
+    assert [(t.server, t.tools) for t in d.tools] == [
+        ("kb-search", ["search", "get_doc"]),
+        ("ticketing", ["create_ticket"]),
+    ]
+
+
 def test_defaults():
     d = AgentDefinition.model_validate(
         {"schema_version": 1, "project": "p", "name": "a", "model": {"provider": "bedrock", "model_id": "m"}}
@@ -45,7 +60,15 @@ def test_defaults():
         base(prompt="../outside.md"),
         base(prompt="/etc/passwd"),
         base(skills=[{"path": "../x"}]),
-        base(tools=[{"type": "remote_mcp", "name": "t"}]),
+        base(tools=[{"type": "remote_mcp", "name": "t"}]),  # old reserved shape
+        base(tools=[{"server": "kb-search", "tools": ["*"]}]),  # no wildcards
+        base(tools=[{"server": "*", "tools": ["search"]}]),
+        base(tools=[{"server": "kb-search", "tools": []}]),  # explicit, non-empty
+        base(tools=[{"server": "kb-search"}]),
+        base(tools=[{"server": "kb-search", "tools": ["search", "search"]}]),
+        base(tools=[{"server": "kb-search", "tools": ["search"]}, {"server": "kb-search", "tools": ["get_doc"]}]),
+        base(tools=[{"server": "KB", "tools": ["search"]}]),
+        base(tools=[{"server": "kb-search", "tools": ["search"], "extra": 1}]),
         base(tags={"agentcore:x": "1"}),
         base(tags={"AWS:x": "1"}),
         base(memory={"mode": "existing", "name": "m"}),  # not exposed

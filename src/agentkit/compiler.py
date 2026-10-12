@@ -113,6 +113,11 @@ def compile_harness(definition: AgentDefinition, settings: Settings, env: str, r
     if not prompt.read_text().strip():
         raise CompileError(f"prompt file {definition.prompt} is empty")
 
+    if (
+        definition.tools
+    ):  # until the grant check and gateway wiring exist, never deploy tools that were silently dropped
+        raise CompileError("tools are declared in agent.yaml but compiling them is not implemented yet")
+
     copies = [Copy(prompt, PROMPT_FILE)]
     skills = []
     for skill in definition.skills:

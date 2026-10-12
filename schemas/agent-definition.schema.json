@@ -302,6 +302,44 @@
       "title": "Skill",
       "type": "object"
     },
+    "ToolRequest": {
+      "additionalProperties": false,
+      "description": "Tools the agent needs from one MCP server. A request: the platform registry decides whether it is granted.",
+      "properties": {
+        "server": {
+          "description": "Id of an MCP server in the platform catalogue (`mcp/servers/<id>.json`).",
+          "examples": [
+            "kb-search"
+          ],
+          "pattern": "^[a-z][a-z0-9-]{0,39}$",
+          "title": "Server",
+          "type": "string"
+        },
+        "tools": {
+          "description": "Tool names on that server, listed explicitly. Wildcards are not allowed.",
+          "examples": [
+            [
+              "search",
+              "get_doc"
+            ]
+          ],
+          "items": {
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Tools",
+          "type": "array"
+        }
+      },
+      "required": [
+        "server",
+        "tools"
+      ],
+      "title": "ToolRequest",
+      "type": "object"
+    },
     "Truncation": {
       "additionalProperties": false,
       "description": "How conversation history is shortened when it grows too long.",
@@ -444,10 +482,9 @@
     },
     "tools": {
       "default": [],
-      "description": "Reserved. Tools are not supported in this iteration; must be empty.",
+      "description": "MCP tools the agent needs, per server. This is a request: the deploy fails if the platform registry does not grant every listed tool for the environment.",
       "items": {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "#/$defs/ToolRequest"
       },
       "title": "Tools",
       "type": "array"

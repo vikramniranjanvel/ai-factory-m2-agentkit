@@ -180,3 +180,9 @@ def test_native_schema_accepts_output(overrides):
         ["node", "-e", NATIVE_CHECK, native_root(), json.dumps(spec)], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_tools_are_not_compiled_yet():
+    """Declared tools must fail loudly rather than be dropped, until the grant check and gateway wiring exist."""
+    with pytest.raises(CompileError, match="tools"):
+        compile_(tools=[{"server": "kb-search", "tools": ["search"]}])
